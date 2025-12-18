@@ -69,7 +69,7 @@ The oscillations resulting from the markovian dynamics are clearly visible. If y
       
 ### Implemented distributions
 
-With the current implementation, each available distribution are characterised by their rate and a shape parameter as follow:
+NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4,5]
 
 | PDF name           | DelaySSA |    MOSAIC   |   Laplace   |
 | ------------------ | :------: | :---------: | :---------: |
@@ -82,10 +82,9 @@ With the current implementation, each available distribution are characterised b
 | Power-law (Pareto) |     ✅    |      ✅      |      ❌      |
 | Power-law (Lomax)  |     ✅    |      ❌      |      ✅      |
 
-*Supported inter-event time distributions (IEDs) across NoMaSS backend methods. Each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α; constraints on α are indicated where applicable. Full IED parametrizations are provided in Table `tab:Nomass-param`.*
+With the current implementation, each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α; constraints on α are indicated where applicable. With the current implementation, each available distribution are characterised by their rate and a shape parameter as follow [Full IED parametrizations are provided in reference [1] Table S1.]:
 
 
-With the current implementation, each available distribution are characterised by their rate and a shape parameter as follow:
 
       Exponential:
           - rate: 1/mean
