@@ -111,7 +111,7 @@ With the current implementation, each distribution is parameterized by a nominal
 
       Exponential:
           - rate: 1/mean
-          - shape parameter: None
+          - shape: None
       
       Normal / Gaussian:
           - rate: 1/mean
