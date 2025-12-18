@@ -82,7 +82,7 @@ Important: delay-based methods (DelaySSA) can become inaccurate when parameters 
 		NB = len(SSA_simul.reactant_list['B'])
 	    N = NA + NB
 	    
-	    SSA_simul.reaction_channel_list[2].rate = r1 * (1 - N/500)
+	    SSA_simul.reaction_channel_list[2].rate = r1 * (1 - N/100)
 	    #SSA_simul.reaction_channel_list[2].shape_param = 0.5 # You can also adjust the shape param as you whish, although most models will typically only involve changing the rate.
 		
     [...]
