@@ -1,4 +1,4 @@
-# NoMaSS: A Scalable and Scalable Framework for complex Non-Markovian Gillespie-based Stochastic Simulation
+# NoMaSS: A Practical and Scalable Framework for Non-Markovian Gillespie-based Stochastic Simulation
 
 <img align="right" src="https://raw.githubusercontent.com/Aurelien-Pelissier/REGIR/master/Figures/REGIR.png" width=400>
 Discrete stochastic processes are widespread in both nature and human-made systems, with applications across physics, biochemistry, epidemiology, social patterns and finance, just to name a few. In the majority of these systems, the dynamics cannot be properly described with memoryless (or Markovian) interactions, and thus require the use of numerical tools for analyzing these non-Markovian dynamics. This repository contains the implementattion of a general and scalable framework to simulate non-Markovian stochastic systems with arbitrary inter-event time distribution, mixing delay based methods, MOSAIC and Laplace Gillespie [1].
