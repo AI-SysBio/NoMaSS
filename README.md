@@ -67,7 +67,7 @@ The algorithm runs for a few seconds and output the following figures (note that
 The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of each method was rigourously demonstrated in [1] and [2].
       
 
-## State dependant distributionsm
+## State dependant waiting time distributions
 You can continuously update IED parameters during the simulation via the `custom_rates_update` callback (called at each iteration / after each event, depending on your setup). This is useful for state-dependent kinetics, where reaction parameters depend on the current system state (e.g., population sizes, resource levels, feedback loops).
 
 Important: delay-based methods (DelaySSA) can become inaccurate when parameters change over time, because scheduled delays are drawn at initiation and cannot be revised once they are placed in the queue. This effectively “freezes” the distribution parameters until the event fires, which is not correct for rapidly changing systems. For time-varying or state-dependent distributions, prefer Laplace Gillespie or MOSAIC, which remain exact under parameter updates (they resample / evaluate rates based on the current state).
@@ -106,7 +106,6 @@ NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] 
 | Power-law (Lomax)  |     ✅    |      ❌      |      ✅      |
 
 With the current implementation, each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α, as detailed below [Full IED parametrizations are provided in reference [1] Table S1.]:
-
 
 
       Exponential (https://en.wikipedia.org/wiki/Exponential_distribution):
