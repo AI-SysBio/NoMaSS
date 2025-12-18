@@ -106,6 +106,12 @@ The REGIR framework offer countless possibilities and highly customizable models
 
 ## References
 
-[1] Pélissier, A, Phan, M, et al. "Practical and scalable simulations of non-Markovian stochastic processes". *Submitted to Proceedings of the National Academy of Sciences* (2022) [[Preprint]](https://arxiv.org/abs/2212.05059)
+[1] Pélissier, A, Phan, M, et al. "Gillespie-Based Methods for Non-Markovian Stochastic Simulation: A Practical Guide". *Under Review* (2026)
 
-[2] Masuda, Naoki, and Luis EC Rocha. "A Gillespie algorithm for non-Markovian stochastic processes." *Siam Review 60.1* (2018): 95-115.
+[2] Pélissier, A, Phan, M, et al. "Unifying non-Markovian Dynamics and Agent Heterogeneity in Scalable Stochastic Networks". *Nature Communication* (2026) [[Preprint]](https://arxiv.org/abs/2212.05059)
+
+[3] Masuda, Naoki, and Luis EC Rocha. "A Gillespie algorithm for non-Markovian stochastic processes." *Siam Review 60.1* (2018): 95-115.
+
+[4] Xiaodong Cai. “Exact stochastic simulation of coupled chemical reactions with delays”. *The Journal of chemical physics 126.12* (2007).
+
+[5] David F Anderson. “A modified next reaction method for simulating chemical systems with time dependent propensities and delays”. *The Journal of chemical physics 127.21* (2007).
