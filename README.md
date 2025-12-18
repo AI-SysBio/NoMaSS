@@ -109,37 +109,37 @@ With the current implementation, each distribution is parameterized by a nominal
 
 
 
-      Exponential:
+      Exponential (https://en.wikipedia.org/wiki/Exponential_distribution):
           - rate: 1/mean
           - shape: None
       
-      Normal / Gaussian:
+      Normal / Gaussian (https://en.wikipedia.org/wiki/Normal_distribution):
           - rate: 1/mean
           - shape: std/mean
       
-      LogNormal:
+      LogNormal (https://en.wikipedia.org/wiki/Log-normal_distribution):
           - rate: 1/mean
           - shape: std/mean
           
-      Gamma:
+      Gamma (https://en.wikipedia.org/wiki/Gamma_distribution):
           - rate: 1/mean
-          - shape: α (https://en.wikipedia.org/wiki/Gamma_distribution)
+          - shape: α
           
-      Weibull:
+      Weibull (https://en.wikipedia.org/wiki/Weibull_distribution):
           - rate: 1/mean
-          - shape: k (https://en.wikipedia.org/wiki/Weibull_distribution)
+          - shape: k
           
-      Cauchy:
+      Cauchy (https://en.wikipedia.org/wiki/Cauchy_distribution):
           - rate: 1/median
-          - shape: std/median (https://en.wikipedia.org/wiki/Cauchy_distribution)
+          - shape: std/median
 
-      Pareto type 1:
+      Pareto type 1 (https://en.wikipedia.org/wiki/Pareto_distribution):
           - rate: 1/median
-          - shape: α (https://en.wikipedia.org/wiki/Pareto_distribution)
+          - shape: α
 
-      Lomax / Pareto type 2:
+      Lomax / Pareto type 2 (https://en.wikipedia.org/wiki/Lomax_distribution):
           - rate: 1/median
-          - shape: α (https://en.wikipedia.org/wiki/Lomax_distribution)
+          - shape: α
       
 
 Keep in mind that non-Markovian simulations are only available for reaction channels with a single reactant, as the definition of inter-event time distribution is ambigious for channels with multiple reactants. If a channel is defined without or with more than one reactant, it will be considered as a Poisson process.
