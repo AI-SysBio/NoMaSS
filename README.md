@@ -49,7 +49,7 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 		
 	
 	#Define the initial population of reactants:
-	N_init = {'A':300,'B':0,'C':0}
+	N_init = {'A':300,'B':0,'C':0,'D':0}
 
 	#Initialize and run the Gillepsie simulation:
 	SSA_simul = nomass.Gillespie_simulation(N_init,param)
@@ -68,6 +68,23 @@ The algorithm runs for a few seconds and output the following figures (note that
 The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of REGIR was rigourously demonstrated in [1] (see the `/REGIR/Benchmark` folder).
       
 ### Implemented distributions
+
+With the current implementation, each available distribution are characterised by their rate and a shape parameter as follow:
+
+| PDF name           | DelaySSA |    MOSAIC   |   Laplace   |
+| ------------------ | :------: | :---------: | :---------: |
+| Exponential        |     ✅    |      ✅      |      ✅      |
+| Gamma              |     ✅    | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |
+| Weibull            |     ✅    | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |
+| Gaussian / Normal  |     ✅    |      ✅      |      ❌      |
+| Lognormal          |     ✅    |      ✅      |      ❌      |
+| Cauchy             |     ✅    |      ✅      |      ❌      |
+| Power-law (Pareto) |     ✅    |      ✅      |      ❌      |
+| Power-law (Lomax)  |     ✅    |      ❌      |      ✅      |
+
+*Supported inter-event time distributions (IEDs) across NoMaSS backend methods. Each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α; constraints on α are indicated where applicable. Full IED parametrizations are provided in Table `tab:Nomass-param`.*
+
+
 With the current implementation, each available distribution are characterised by their rate and a shape parameter as follow:
 
       Exponential:
