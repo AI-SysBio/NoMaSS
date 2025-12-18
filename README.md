@@ -142,14 +142,16 @@ With the current implementation, each distribution is parameterized by a nominal
           - shape: α (https://en.wikipedia.org/wiki/Lomax_distribution)
       
 
-Keep in mind that non-Markovian simulations are only available for reaction channels with a single reactant, as the definition of inter-event time distribution is ambigious for channels with multiple reactants. If a channel is defined without or with more than one reactant, it will be considered as a Poisson process. 
+Keep in mind that non-Markovian simulations are only available for reaction channels with a single reactant, as the definition of inter-event time distribution is ambigious for channels with multiple reactants. If a channel is defined without or with more than one reactant, it will be considered as a Poisson process.
+
+*Feel free to drop me an email if you have any question, I will be happy to help !*
 
 
-### Customizing NoMaSS for your system
+## Customizing NoMaSS for your system
 
 The REGIR framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `NoMaSS/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `NoMaSS/Reactant` class, and then define your reaction specific rules in `NoMaSS/perform_reaction`.
 
-*Feel free to drop me an email if ypu are not if you are not sure how to do it, I will be happy to help !*
+*Feel free to drop me an email if you are not sure how to do it, I will be happy to help !*
 
 
 ## References
