@@ -46,6 +46,16 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 	reaction3 = nomass.Reaction_channel(param, rate=r3)
 	reaction3.reactants = ['A','B']
 	reaction3.products = []
+
+	def custom_state_update(SSA_simul):
+	    #A custom function to update the IED parameters of each channels   
+	    
+	    NA = len(SSA_simul.reactant_list['A'])
+		NB = len(SSA_simul.reactant_list['B'])
+	    N = NA + NB
+	    
+	    SSA_simul.reaction_channel_list[2].rate = r1 * (1 - N/500)
+	    #SSA_simul.reaction_channel_list[2].shape_param = 0.5 # You can also adjust the shape param as you whish, although most models will typically only involved changing the rate.
 		
 	
 	#Define the initial population of reactants:
@@ -65,11 +75,11 @@ The algorithm runs for a few seconds and output the following figures (note that
   <img src="https://raw.githubusercontent.com/Aurelien-Pelissier/REGIR/master/Figures/REGIR_test.png" width=800>
 </p>
 
-The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of REGIR was rigourously demonstrated in [1] (see the `/REGIR/Benchmark` folder).
+The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of each method was rigourously demonstrated in [1] and [2].
       
 
 ### State dependant distributionsm
-It is common to have systems where the reaction rates are directly influenced by the systen states. In these situation, Delay-based methods will yield wrong results because the delays cant be updated once they have been initiated in the queu. For system with fast changing distributions, you should prioritize using Laplace Gillespie and MOSAIC as these are exact.
+It is common to have systems where the reaction rates are directly influenced by the systen states. In these situation, Delay-based methods will yield wrong results because the delays cant be updated once they have been initiated in the queu. For system with fast changing distributions, you should prioritize using Laplace Gillespie and MOSAIC as these are exact. You can adjust the reaction rate directly in your custum fonction:
 
 
 
