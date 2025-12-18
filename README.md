@@ -54,8 +54,8 @@ Then, you can run a non-Markovian simulation with the toy example below, or load
 	populations = G_simul.run_simulations(param.Tend, verbose = True)
 	
 	#Plot the results:
-	G_simul.plot_inter_event_time_distribution()
-	G_simul.plot_populations()
+	SSA_simul.plot_inter_event_time_distribution()
+	SSA_simul.plot_populations()
 
 The algorithm runs for a few seconds and output the following figures (note that you can disables all printing by passing the argument `verbose = False` when running the simulation):
 <p align="center">
