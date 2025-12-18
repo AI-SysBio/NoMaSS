@@ -94,7 +94,7 @@ Important: delay-based methods (DelaySSA) can become inaccurate when parameters 
 
 NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4,5]
 
-| PDF name           | DelaySSA |    MOSAIC   |   Laplace   |
+| PDF name           | DelaySSA [4,5] |    MOSAIC [2]  |   Laplace [3]  |
 | ------------------ | :------: | :---------: | :---------: |
 | Exponential        |     ✅    |      ✅      |      ✅      |
 | Gamma              |     ✅    | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |
