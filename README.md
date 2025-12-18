@@ -103,7 +103,7 @@ NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] 
 | Lognormal          |     ✅    |      ✅      |      ❌      |
 | Cauchy             |     ✅    |      ✅      |      ❌      |
 | Power-law (Pareto) |     ✅    |      ✅      |      ❌      |
-| Power-law (Lomax)  |     ✅    |      ❌      |      ✅      |
+| Power-law (Lomax)  |     ✅    |      ✅      |      ✅      |
 
 With the current implementation, each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α, as detailed below [Full IED parametrizations are provided in reference [1] Table S1.]:
 
