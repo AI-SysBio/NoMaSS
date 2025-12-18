@@ -67,6 +67,12 @@ The algorithm runs for a few seconds and output the following figures (note that
 
 The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of REGIR was rigourously demonstrated in [1] (see the `/REGIR/Benchmark` folder).
       
+
+### State dependant distributionsm
+It is common to have systems where the reaction rates are directly influenced by the systen states. In these situation, Delay-based methods will yield wrong results because the delays cant be updated once they have been initiated in the queu. For system with fast changing distributions, you should prioritize using Laplace Gillespie and MOSAIC as these are exact.
+
+
+
 ### Implemented distributions
 
 NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4,5]
@@ -90,7 +96,7 @@ With the current implementation, each distribution is parameterized by a nominal
           - rate: 1/mean
           - shape parameter: None
       
-      Normal:
+      Normal / Gaussian:
           - rate: 1/mean
           - shape: std/mean
       
@@ -100,27 +106,33 @@ With the current implementation, each distribution is parameterized by a nominal
           
       Gamma:
           - rate: 1/mean
-          - shape: α >= 1 (https://en.wikipedia.org/wiki/Gamma_distribution)
+          - shape: α (https://en.wikipedia.org/wiki/Gamma_distribution)
           
       Weibull:
           - rate: 1/mean
-          - shape: k >= 1 (https://en.wikipedia.org/wiki/Weibull_distribution)
+          - shape: k (https://en.wikipedia.org/wiki/Weibull_distribution)
           
       Cauchy:
           - rate: 1/median
-          - shape: γ (https://en.wikipedia.org/wiki/Cauchy_distribution)
+          - shape: std/median (https://en.wikipedia.org/wiki/Cauchy_distribution)
+
+      Pareto type 1:
+          - rate: 1/median
+          - shape: α (https://en.wikipedia.org/wiki/Pareto_distribution)
+
+      Lomax / Pareto type 2:
+          - rate: 1/median
+          - shape: α (https://en.wikipedia.org/wiki/Lomax_distribution)
       
 
-Keep in mind that non-Markovian simulations are only available for reaction channels with a single reactant, as the definition of inter-event time distribution is ambigious for channels with multiple reactants. If a channel is defined without or with more than one reactant, it will be considered as a Poisson process. Also, note that monotolically decreasing distributions, such as Weibull (k < 1), gamma (α < 1) or power laws, are not available in the current implementation of this repository, as these can be more elegantly and efficiently simulated with the Laplace Gillespie algorithm (LGA) [2]. 
-
-*Feel free to drop me an email if you have interest in me adding the Laplace Gillespie or any other relevant distributions to this implementation.* 
+Keep in mind that non-Markovian simulations are only available for reaction channels with a single reactant, as the definition of inter-event time distribution is ambigious for channels with multiple reactants. If a channel is defined without or with more than one reactant, it will be considered as a Poisson process. 
 
 
-### Customizing REGIR for your system
+### Customizing NoMaSS for your system
 
 The REGIR framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `REGIR/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `REGIR/Reactant` class, and then define your reaction specific rules in `REGIR/perform_reaction`.
 
-*Feel free to email me if you are not sure how to do it, I will be happy to help !*
+*Feel free to drop me an email if ypu are not if you are not sure how to do it, I will be happy to help !*
 
 
 ## References
