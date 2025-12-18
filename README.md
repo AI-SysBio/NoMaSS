@@ -16,7 +16,7 @@ First, you need to install NoMaSS, or you can use the `NoMaSS.py` file provided 
 	- pip install nomass
 
 
-Then, you can run a non-Markovian simulation with the toy example below, or load an `SBML` model directly into REGIR (check out the [REGIR/SBML](REGIR/SBML) folder for detailed instructions). Other examples, including the three biochemical systems described in the paper: Cell division, differentiation and RNA transcription, are provided in the `/REGIR/Examples` and `/REGIR/Biochemical_applications` folders.
+Then, you can run a non-Markovian simulation with the toy example below. Other examples, including the three biochemical systems described in the paper: Cell division, differentiation and RNA transcription, are provided in the `/NoMaSS/Examples` and `/REGIR/Biochemical_applications` folders.
 
 	import nomass
 
@@ -34,13 +34,16 @@ Then, you can run a non-Markovian simulation with the toy example below, or load
 	alpha2 = 5
       
 	#Define the reaction chanels:
-	reaction1 = nomass.Reaction_channel(param,rate=r1, shape_param=alpha1, distribution = 'Gamma')
+	reaction1 = nomass.Reaction_channel(param,rate=r1, shape_param=alpha1, distribution = 'Gamma', method = 'Delay')
 	reaction1.reactants = ['A']
 	reaction1.products = ['B']	
-	reaction2 = nomass.Reaction_channel(param,rate=r2, shape_param=alpha2, distribution = 'Weibull')
+	reaction2 = nomass.Reaction_channel(param,rate=r2, shape_param=alpha2, distribution = 'Weibull', method = 'MOSAIC')
 	reaction2.reactants = ['B']
-	reaction2.products = ['C','A']	
-	reaction3 = nomass.Reaction_channel(param,rate=r3)
+	reaction2.products = ['C','A']
+	reaction3 = nomass.Reaction_channel(param, rate=r3, shape_param=alpha2, distribution = 'Gamma', method = 'Laplace')
+	reaction3.reactants = ['C','D']
+	reaction3.products = []
+	reaction3 = nomass.Reaction_channel(param, rate=r3)
 	reaction3.reactants = ['A','B']
 	reaction3.products = []
 		
