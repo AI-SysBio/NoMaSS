@@ -18,7 +18,7 @@ First, you need to install NoMaSS, or you can use the `NoMaSS.py` file provided 
 
 Then, you can run a non-Markovian simulation with the toy example below, or load an `SBML` model directly into REGIR (check out the [REGIR/SBML](REGIR/SBML) folder for detailed instructions). Other examples, including the three biochemical systems described in the paper: Cell division, differentiation and RNA transcription, are provided in the `/REGIR/Examples` and `/REGIR/Biochemical_applications` folders.
 
-	import nomass as ssa
+	import nomass
 
 	#Set the simulation parameters:
 	class param:
@@ -34,13 +34,13 @@ Then, you can run a non-Markovian simulation with the toy example below, or load
 	alpha2 = 5
       
 	#Define the reaction chanels:
-	reaction1 = gil.Reaction_channel(param,rate=r1, shape_param=alpha1, distribution = 'Gamma')
+	reaction1 = nomass.Reaction_channel(param,rate=r1, shape_param=alpha1, distribution = 'Gamma')
 	reaction1.reactants = ['A']
 	reaction1.products = ['B']	
-	reaction2 = gil.Reaction_channel(param,rate=r2, shape_param=alpha2, distribution = 'Weibull')
+	reaction2 = nomass.Reaction_channel(param,rate=r2, shape_param=alpha2, distribution = 'Weibull')
 	reaction2.reactants = ['B']
 	reaction2.products = ['C','A']	
-	reaction3 = gil.Reaction_channel(param,rate=r3)
+	reaction3 = nomass.Reaction_channel(param,rate=r3)
 	reaction3.reactants = ['A','B']
 	reaction3.products = []
 		
@@ -49,9 +49,9 @@ Then, you can run a non-Markovian simulation with the toy example below, or load
 	N_init = {'A':300,'B':0,'C':0}
 
 	#Initialize and run the Gillepsie simulation:
-	SSA_simul = ssa.Gillespie_simulation(N_init,param)
+	SSA_simul = nomass.Gillespie_simulation(N_init,param)
 	SSA_simul.reaction_channel_list = [reaction1, reaction2, reaction3]
-	populations = G_simul.run_simulations(param.Tend, verbose = True)
+	populations = SSA_simul.run_simulations(param.Tend, verbose = True)
 	
 	#Plot the results:
 	SSA_simul.plot_inter_event_time_distribution()
@@ -99,7 +99,7 @@ Keep in mind that non-Markovian simulations are only available for reaction chan
 
 ### Customizing REGIR for your system
 
-The REGIR framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `REGIR/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `REGIR/Reactant` class, and then define your reaction specific rules in `REGIR/ perform_reaction`.
+The REGIR framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `REGIR/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `REGIR/Reactant` class, and then define your reaction specific rules in `REGIR/perform_reaction`.
 
 *Feel free to email me if you are not sure how to do it, I will be happy to help !*
 
