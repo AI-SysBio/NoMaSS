@@ -1,7 +1,7 @@
-# REGIR: A Scalable Gillespie Algorithm for non-Markovian Stochastic Simulations
+# NoMaSS: A Scalable and Scalable Framework for complex Non-Markovian Gillespie-based Stochastic Simulation
 
 <img align="right" src="https://raw.githubusercontent.com/Aurelien-Pelissier/REGIR/master/Figures/REGIR.png" width=400>
-Discrete stochastic processes are widespread in both nature and human-made systems, with applications across physics, biochemistry, epidemiology, social patterns and finance, just to name a few. In the majority of these systems, the dynamics cannot be properly described with memoryless (or Markovian) interactions, and thus require the use of numerical tools for analyzing these non-Markovian dynamics. This repository contains the implementattion of a general and scalable framework to simulate non-Markovian stochastic systems with arbitrary inter-event time distribution and accuracy. The algorithm is referred to as the Rejection Gillespie algorithm for non-Markovian Reactions (REGIR) [1].
+Discrete stochastic processes are widespread in both nature and human-made systems, with applications across physics, biochemistry, epidemiology, social patterns and finance, just to name a few. In the majority of these systems, the dynamics cannot be properly described with memoryless (or Markovian) interactions, and thus require the use of numerical tools for analyzing these non-Markovian dynamics. This repository contains the implementattion of a general and scalable framework to simulate non-Markovian stochastic systems with arbitrary inter-event time distribution, mixing delay based methods, MOSAIC and Laplace Gillespie [1].
 
 &nbsp;
 
@@ -11,14 +11,14 @@ Discrete stochastic processes are widespread in both nature and human-made syste
         
 ### Simulating a non-Markovian system
 
-First, you need to install REGIR, or you can use the `REGIR.py` file provided in the repository:
+First, you need to install NoMaSS, or you can use the `NoMaSS.py` file provided in the repository:
 
-	- pip install REGIR
+	- pip install nomass
 
 
 Then, you can run a non-Markovian simulation with the toy example below, or load an `SBML` model directly into REGIR (check out the [REGIR/SBML](REGIR/SBML) folder for detailed instructions). Other examples, including the three biochemical systems described in the paper: Cell division, differentiation and RNA transcription, are provided in the `/REGIR/Examples` and `/REGIR/Biochemical_applications` folders.
 
-	import REGIR as gil
+	import nomass as ssa
 
 	#Set the simulation parameters:
 	class param:
@@ -49,8 +49,8 @@ Then, you can run a non-Markovian simulation with the toy example below, or load
 	N_init = {'A':300,'B':0,'C':0}
 
 	#Initialize and run the Gillepsie simulation:
-	G_simul = gil.Gillespie_simulation(N_init,param)
-	G_simul.reaction_channel_list = [reaction1, reaction2, reaction3]
+	SSA_simul = ssa.Gillespie_simulation(N_init,param)
+	SSA_simul.reaction_channel_list = [reaction1, reaction2, reaction3]
 	populations = G_simul.run_simulations(param.Tend, verbose = True)
 	
 	#Plot the results:
