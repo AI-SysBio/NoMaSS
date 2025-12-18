@@ -47,7 +47,7 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 	reaction3.reactants = ['A','B']
 	reaction3.products = []
 
-	def custom_state_update(SSA_simul):
+	def custom_rates_update(SSA_simul):
 	    #A custom function to update the IED parameters of each channels   
 	    
 	    NA = len(SSA_simul.reactant_list['A'])
@@ -64,7 +64,7 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 	#Initialize and run the Gillepsie simulation:
 	SSA_simul = nomass.Gillespie_simulation(N_init,param)
 	SSA_simul.reaction_channel_list = [reaction1, reaction2, reaction3]
-	populations = SSA_simul.run_simulations(param.Tend, verbose = True)
+	populations = SSA_simul.run_simulations(param.Tend, reaction_channel_list, update_function = custom_rates_update, verbose = True)
 	
 	#Plot the results:
 	SSA_simul.plot_inter_event_time_distribution()
@@ -79,8 +79,9 @@ The oscillations resulting from the markovian dynamics are clearly visible. If y
       
 
 ### State dependant distributionsm
-It is common to have systems where the reaction rates are directly influenced by the systen states. In these situation, Delay-based methods will yield wrong results because the delays cant be updated once they have been initiated in the queu. For system with fast changing distributions, you should prioritize using Laplace Gillespie and MOSAIC as these are exact. You can adjust the reaction rate directly in your custum fonction:
+You can continuously update IED parameters during the simulation via the `custom_rates_update` callback (called at each iteration / after each event, depending on your setup). This is useful for state-dependent kinetics, where reaction parameters depend on the current system state (e.g., population sizes, resource levels, feedback loops).
 
+Important: delay-based methods (DelaySSA) can become inaccurate when parameters change over time, because scheduled delays are drawn at initiation and cannot be revised once they are placed in the queue. This effectively “freezes” the distribution parameters until the event fires, which is not correct for rapidly changing systems. For time-varying or state-dependent distributions, prefer Laplace Gillespie or MOSAIC, which remain exact under parameter updates (they resample / evaluate rates based on the current state).
 
 
 ### Implemented distributions
@@ -140,7 +141,7 @@ Keep in mind that non-Markovian simulations are only available for reaction chan
 
 ### Customizing NoMaSS for your system
 
-The REGIR framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `REGIR/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `REGIR/Reactant` class, and then define your reaction specific rules in `REGIR/perform_reaction`.
+The REGIR framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `NoMaSS/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `NoMaSS/Reactant` class, and then define your reaction specific rules in `NoMaSS/perform_reaction`.
 
 *Feel free to drop me an email if ypu are not if you are not sure how to do it, I will be happy to help !*
 
