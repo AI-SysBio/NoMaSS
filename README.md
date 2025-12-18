@@ -9,7 +9,7 @@ Discrete stochastic processes are widespread in both nature and human-made syste
 
         
         
-### Simulating a non-Markovian system
+## Simulating a non-Markovian system
 
 First, you need to install NoMaSS, or you can use the `NoMaSS.py` file provided in the repository:
 
@@ -46,17 +46,6 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 	reaction3 = nomass.Reaction_channel(param, rate=r3)
 	reaction3.reactants = ['A','B']
 	reaction3.products = []
-
-	def custom_rates_update(SSA_simul):
-	    #A custom function to update the IED parameters of each channels   
-	    
-	    NA = len(SSA_simul.reactant_list['A'])
-		NB = len(SSA_simul.reactant_list['B'])
-	    N = NA + NB
-	    
-	    SSA_simul.reaction_channel_list[2].rate = r1 * (1 - N/500)
-	    #SSA_simul.reaction_channel_list[2].shape_param = 0.5 # You can also adjust the shape param as you whish, although most models will typically only involved changing the rate.
-		
 	
 	#Define the initial population of reactants:
 	N_init = {'A':300,'B':0,'C':0,'D':0}
@@ -64,7 +53,7 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 	#Initialize and run the Gillepsie simulation:
 	SSA_simul = nomass.Gillespie_simulation(N_init,param)
 	SSA_simul.reaction_channel_list = [reaction1, reaction2, reaction3]
-	populations = SSA_simul.run_simulations(param.Tend, reaction_channel_list, update_function = custom_rates_update, verbose = True)
+	populations = SSA_simul.run_simulations(param.Tend, reaction_channel_list, verbose = True)
 	
 	#Plot the results:
 	SSA_simul.plot_inter_event_time_distribution()
@@ -78,13 +67,30 @@ The algorithm runs for a few seconds and output the following figures (note that
 The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of each method was rigourously demonstrated in [1] and [2].
       
 
-### State dependant distributionsm
+## State dependant distributionsm
 You can continuously update IED parameters during the simulation via the `custom_rates_update` callback (called at each iteration / after each event, depending on your setup). This is useful for state-dependent kinetics, where reaction parameters depend on the current system state (e.g., population sizes, resource levels, feedback loops).
 
 Important: delay-based methods (DelaySSA) can become inaccurate when parameters change over time, because scheduled delays are drawn at initiation and cannot be revised once they are placed in the queue. This effectively “freezes” the distribution parameters until the event fires, which is not correct for rapidly changing systems. For time-varying or state-dependent distributions, prefer Laplace Gillespie or MOSAIC, which remain exact under parameter updates (they resample / evaluate rates based on the current state).
 
 
-### Implemented distributions
+	import nomass
+    [...]
+	def custom_rates_update(SSA_simul):
+	    #A custom function to update the IED parameters of each channels   
+	    
+	    NA = len(SSA_simul.reactant_list['A'])
+		NB = len(SSA_simul.reactant_list['B'])
+	    N = NA + NB
+	    
+	    SSA_simul.reaction_channel_list[2].rate = r1 * (1 - N/500)
+	    #SSA_simul.reaction_channel_list[2].shape_param = 0.5 # You can also adjust the shape param as you whish, although most models will typically only involve changing the rate.
+		
+    [...]
+	populations = SSA_simul.run_simulations(param.Tend, reaction_channel_list, update_function = custom_rates_update, verbose = True)
+
+
+
+## Implemented distributions
 
 NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4,5]
 
