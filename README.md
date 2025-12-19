@@ -62,7 +62,7 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 
 The algorithm runs for a few seconds and output the following figures (note that you can disables all printing by passing the argument `verbose = False` when running the simulation):
 <p align="center">
-  <img src="https://raw.githubusercontent.com/AI-SysBio/NoMaSS/master/Figures/NoMaSS_test.png" width=800>
+  <img src="https://github.com/AI-SysBio/NoMaSS/blob/main/Figures/NoMaSS_test.png" width=800>
 </p>
 
 The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of each method was rigourously demonstrated in [1] and [2].
