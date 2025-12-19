@@ -1,6 +1,6 @@
 # NoMaSS: A Practical and Scalable Framework for Non-Markovian Gillespie-based Stochastic Simulation
 
-<img align="right" src="https://raw.githubusercontent.com/Aurelien-Pelissier/REGIR/master/Figures/REGIR.png" width=400>
+<img align="right" src="https://raw.githubusercontent.com/AI-SysBio/NoMaSS/master/Figures/NoMaSS.png" width=400>
 Discrete stochastic processes are widespread in both nature and human-made systems, with applications across physics, biochemistry, epidemiology, social patterns and finance, just to name a few. In the majority of these systems, the dynamics cannot be properly described with memoryless (or Markovian) interactions, and thus require the use of numerical tools for analyzing these non-Markovian dynamics. This repository contains the implementattion of a general and scalable framework to simulate non-Markovian stochastic systems with arbitrary inter-event time distribution, mixing delay based methods, MOSAIC and Laplace Gillespie [1].
 
 &nbsp;
@@ -61,7 +61,7 @@ Then, you can run a non-Markovian simulation with the toy example below. Other e
 
 The algorithm runs for a few seconds and output the following figures (note that you can disables all printing by passing the argument `verbose = False` when running the simulation):
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Aurelien-Pelissier/REGIR/master/Figures/REGIR_test.png" width=800>
+  <img src="https://raw.githubusercontent.com/AI-SysBio/NoMaSS/master/Figures/NoMaSS_test.png" width=800>
 </p>
 
 The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of each method was rigourously demonstrated in [1] and [2].
