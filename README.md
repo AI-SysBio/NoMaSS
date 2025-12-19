@@ -95,16 +95,16 @@ Important: delay-based methods (DelaySSA) can become inaccurate when parameters 
 
 NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4,5]
 
-| PDF name           | DelaySSA [4,5] |    MOSAIC [2]  |   Laplace [3]  |
-| ------------------ | :------: | :---------: | :---------: |
-| Exponential        |     ✅    |      ✅      |      ✅      |
-| Gamma              |     ✅    | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |
-| Weibull            |     ✅    | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |
-| Gaussian / Normal  |     ✅    |      ✅      |      ❌      |
-| Lognormal          |     ✅    |      ✅      |      ❌      |
-| Cauchy             |     ✅    |      ✅      |      ❌      |
-| Power-law (Pareto) |     ✅    |      ✅      |      ❌      |
-| Power-law (Lomax)  |     ✅    |      ✅      |      ✅      |
+| PDF name           |    MOSAIC [2]  |   Laplace [3]  | DelaySSA [4,5] |
+| ------------------ | :---------: | :---------: | :------: |
+| Exponential        |      ✅      |      ✅      |    ✅    |
+| Gamma              | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |    ✅    |
+| Weibull            | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |    ✅    |
+| Gaussian / Normal  |      ✅      |      ❌      |    ✅    |
+| Lognormal          |      ✅      |      ❌      |    ✅    |
+| Cauchy             |      ✅      |      ❌      |    ✅    |
+| Power-law (Pareto) |      ✅      |      ❌      |    ✅    |
+| Power-law (Lomax)  |      ✅      |      ✅      |    ✅    |
 
 With the current implementation, each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α, as detailed below [Full IED parametrizations are provided in reference [1] Table S1.]:
 
