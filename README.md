@@ -93,9 +93,9 @@ Important: delay-based methods (DelaySSA) can become inaccurate when parameters 
 
 ## Implemented distributions
 
-NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4,5]
+NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4]
 
-| PDF name           |    MOSAIC [2]  |   Laplace [3]  | DelaySSA [4,5] |
+| PDF name           |    MOSAIC [2]  |   Laplace [3]  | DelaySSA [4] |
 | ------------------ | :---------: | :---------: | :------: |
 | Exponential        |      ✅      |      ✅      |    ✅    |
 | Gamma              | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |    ✅    |
@@ -162,6 +162,4 @@ The NoMaSS framework offer countless possibilities and highly customizable model
 
 [3] Masuda, Naoki, and Luis EC Rocha. "A Gillespie algorithm for non-Markovian stochastic processes." *Siam Review 60.1* (2018): 95-115.
 
-[4] Xiaodong Cai. “Exact stochastic simulation of coupled chemical reactions with delays”. *The Journal of chemical physics 126.12* (2007).
-
-[5] David F Anderson. “A modified next reaction method for simulating chemical systems with time dependent propensities and delays”. *The Journal of chemical physics 127.21* (2007).
+[4] David F Anderson. “A modified next reaction method for simulating chemical systems with time dependent propensities and delays”. *The Journal of chemical physics 127.21* (2007).
