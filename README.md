@@ -156,7 +156,7 @@ The NoMaSS framework offer countless possibilities and highly customizable model
 
 ## References
 
-[1] Pélissier, A, et al. "Gillespie-Based Methods for Non-Markovian Stochastic Simulation: A Practical Guide". *Under Review* (2026)
+[1] Pélissier, A, et al. "Gillespie-Based Methods for Non-Markovian Stochastic Simulation: A Practical Guide". *Briefings in Bioinformatics* (2026)
 
 [2] Pélissier, A, et al. "Unifying non-Markovian Dynamics and Agent Heterogeneity in Scalable Stochastic Networks". *Nature Communication* (2026)
 
