@@ -1,0 +1,5 @@
+# Dependencies of the NoMaSS engine (nomass/) and of the examples.
+# The scripts reproducing the paper need extra packages: see paper/requirements.txt
+numpy>=1.21
+scipy>=1.7
+matplotlib>=3.4

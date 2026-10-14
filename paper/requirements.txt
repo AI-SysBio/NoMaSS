@@ -1,0 +1,10 @@
+# Extra dependencies of the scripts reproducing the figures of the paper.
+# Install together with the engine:  pip install -r requirements.txt -r paper/requirements.txt
+pandas
+seaborn
+openpyxl          # reading the single-cell .xlsx data
+scikit-learn      # mean_squared_error in the fitting scripts
+SALib             # Sobol sensitivity analysis (fig4D)
+pyemd             # earth mover's distance (fig1DE, figS1S2); needs a C++ compiler
+python-libsbml    # SBML import/export (paper/sbml)
+simplesbml

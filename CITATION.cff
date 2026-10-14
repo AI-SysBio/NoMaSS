@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use NoMaSS, please cite the article below."
+title: "NoMaSS: Non-Markovian Stochastic Simulation"
+type: software
+authors:
+  - family-names: "Pélissier"
+    given-names: "Aurélien"
+repository-code: "https://github.com/AI-SysBio/NoMaSS"
+license: MIT
+preferred-citation:
+  type: article
+  title: "Gillespie-based simulation and inference for non-Markovian stochastic reaction networks"
+  authors:
+    - family-names: "Pélissier"
+      given-names: "Aurélien"
+    - family-names: "Phan"
+      given-names: "M."
+    - family-names: "Beerenwinkel"
+      given-names: "Niko"
+    - family-names: "Rodríguez Martínez"
+      given-names: "María"
+  journal: "Briefings in Bioinformatics"
+  volume: 27
+  issue: 5
+  year: 2026
+  doi: "10.1093/bib/bbag486"
+  url: "https://pmc.ncbi.nlm.nih.gov/articles/pmid/42770838/"

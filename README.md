@@ -1,165 +1,179 @@
-# NoMaSS: A Practical and Scalable Framework for Non-Markovian Gillespie-based Stochastic Simulation
+# NoMaSS: Non-Markovian Stochastic Simulation
 
-<img align="right" src="https://github.com/AI-SysBio/NoMaSS/blob/main/Figures/NoMaSS.png" width=400>
+[![tests](https://github.com/AI-SysBio/NoMaSS/actions/workflows/ci.yml/badge.svg)](https://github.com/AI-SysBio/NoMaSS/actions/workflows/ci.yml)
+[![paper](https://img.shields.io/badge/paper-Brief.%20Bioinform.%202026-blue)](https://doi.org/10.1093/bib/bbag486)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Discrete stochastic processes are widespread in both nature and human-made systems, with applications across physics, biochemistry, epidemiology, social patterns and finance, just to name a few. In the majority of these systems, the dynamics cannot be properly described with memoryless (or Markovian) interactions, and thus require the use of numerical tools for analyzing these non-Markovian dynamics. This repository contains the implementattion of a general and scalable framework to simulate non-Markovian stochastic systems with arbitrary inter-event time distribution, mixing delay based methods, MOSAIC and Laplace Gillespie [1].
+<img align="right" src="figures/NoMaSS.png" width=380>
+
+Discrete stochastic processes are widespread in nature and in human-made systems, with applications in physics, biochemistry, epidemiology, social dynamics and finance. In most of these systems the dynamics cannot be described with memoryless (Markovian) interactions, and simulating them requires dedicated numerical tools.
+
+NoMaSS is a practical and scalable Gillespie-based framework to simulate non-Markovian reaction networks with arbitrary inter-event time distributions. It implements three exact methods that can be mixed freely in the same model, one per reaction channel:
+
+* **MOSAIC** (rejection based, [1, 2]): propose events at an upper bound of the rate and accept them with the ratio of the true hazard to the bound.
+* **Laplace Gillespie** [3]: give every reactant a Poisson rate drawn from the mixing density of its waiting-time distribution.
+* **DelaySSA** [4]: draw the waiting time when a reactant enters a channel and schedule the event in a priority queue.
+
+The methods, their accuracy and their speed are described in the accompanying paper [1].
 
 &nbsp;
 
+## Installation
 
+NoMaSS needs Python 3.9+ with `numpy`, `scipy` and `matplotlib`. Clone the repository and install the dependencies:
 
-        
-        
-## Simulating a non-Markovian system
+```bash
+git clone https://github.com/AI-SysBio/NoMaSS.git
+cd NoMaSS
+pip install -r requirements.txt
+```
 
-First, you need to install NoMaSS, or you can use the `NoMaSS.py` file provided in the repository:
+The engine is the `nomass/` folder. The examples add the repository root to `sys.path` so they run from anywhere; in your own scripts, run from the repository root, set `PYTHONPATH` to it, or copy the folder next to your script. A pip-installable package will follow.
 
-	- pip install nomass
+Check that everything works with
 
+```bash
+python examples/toy_example.py
+```
 
-Then, you can run a non-Markovian simulation with the toy example below. Other examples, including the three biochemical systems described in the paper: Cell division, differentiation and RNA transcription, are provided in the `/NoMaSS/Examples` and `/REGIR/Biochemical_applications` folders.
+## Quick start
 
-	import nomass
+The example below ([examples/toy_example.py](examples/toy_example.py)) simulates a small network where each channel uses a different method:
 
-	#Set the simulation parameters:
-	class param:
-		Tend = 10		#Length of the simulation
-		N_simulations = 20	#The simulation results should be averaged over many trials
-		unit = 'h'		#Unit of time (used for plotting only)
-		timepoints = 100	#Number of timepoints to record (used for plotting only)
+```python
+import nomass
 
-	r1 = 1
-	r2 = 4
-	r3 = 0.03
-	alpha1 = 20
-	alpha2 = 5
-      
-	#Define the reaction chanels:
-	reaction1 = nomass.Reaction_channel(param,rate=r1, shape_param=alpha1, distribution = 'Gamma', method = 'Delay')
-	reaction1.reactants = ['A']
-	reaction1.products = ['B']	
-	reaction2 = nomass.Reaction_channel(param,rate=r2, shape_param=alpha2, distribution = 'Weibull', method = 'MOSAIC')
-	reaction2.reactants = ['B']
-	reaction2.products = ['C','A']
-	reaction3 = nomass.Reaction_channel(param, rate=r3, shape_param=alpha2, distribution = 'Gamma', method = 'Laplace')
-	reaction3.reactants = ['C','D']
-	reaction3.products = []
-	reaction3 = nomass.Reaction_channel(param, rate=r3)
-	reaction3.reactants = ['A','B']
-	reaction3.products = []
-	
-	#Define the initial population of reactants:
-	N_init = {'A':300,'B':0,'C':0,'D':0}
+class param:
+    Tend = 10            # length of the simulation
+    N_simulations = 20   # number of independent realisations
+    timepoints = 100     # number of recorded time points (plots only)
+    unit = 'h'           # time unit (plots only)
 
-	#Initialize and run the Gillepsie simulation:
-	SSA_simul = nomass.Gillespie_simulation(N_init,param)
-	SSA_simul.reaction_channel_list = [reaction1, reaction2, reaction3]
-	populations = SSA_simul.run_simulations(param.Tend, reaction_channel_list, verbose = True)
-	
-	#Plot the results:
-	SSA_simul.plot_inter_event_time_distribution()
-	SSA_simul.plot_populations()
+# Reaction channels: one waiting-time distribution and one method each
+r1 = nomass.Reaction_channel(param, rate=1, shape_param=20, distribution='Gamma', method='Delay',
+                             reactants=['A'], products=['B'], name='A -> B')
+r2 = nomass.Reaction_channel(param, rate=4, shape_param=5, distribution='Weibull', method='MOSAIC',
+                             reactants=['B'], products=['C', 'A'], name='B -> C + A')
+r3 = nomass.Reaction_channel(param, rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace',
+                             reactants=['C'], products=[], name='C -> 0')
+r4 = nomass.Reaction_channel(param, rate=0.03,  # two reactants: Poisson process
+                             reactants=['A', 'B'], products=[], name='A + B -> 0')
 
-The algorithm runs for a few seconds and output the following figures (note that you can disables all printing by passing the argument `verbose = False` when running the simulation):
+# Initial population (every species must be listed)
+N_init = {'A': 300, 'B': 0, 'C': 0}
+
+# Build and run the model
+sim = nomass.Gillespie_simulation(N_init, param, [r1, r2, r3, r4])
+populations = sim.run_simulations(verbose=True)   # array (N_simulations, timepoints, species + total)
+
+# Plot the results
+sim.plot_inter_event_time_distribution()
+sim.plot_populations()
+```
+
+The simulation runs in a few seconds and produces the figures below (pass `verbose=False` to silence the progress output).
+
 <p align="center">
-  <img src="https://github.com/AI-SysBio/NoMaSS/blob/main/Figures/NoMaSS_test.png" width=800>
+  <img src="figures/toy_example.png" width=1000>
 </p>
 
-The oscillations resulting from the markovian dynamics are clearly visible. If you check carefully, you will notice that the *theoretical distributions* do not match exactly the *simulated distributions*, even if you increase the number of simulations. This happens because the entities A and B are reactants of two reaction channels at the same time, and the *theoretical distribution* only represent the inter-event time distribution that **the reaction channel would have if it was the only process interaction with that reactant**. In practice, these kind of situations will occur frequently in non-Markovian systems, so do not worry if the simulated and theoretical distributions do not match exactly. The accuracy of each method was rigourously demonstrated in [1] and [2].
-      
+The oscillations created by the nearly deterministic Gamma waiting times are clearly visible. The *theoretical* distributions do not match the *simulated* ones exactly, even with many realisations, and this is expected: species A and B are reactants of two channels at the same time, and the theoretical curve is the distribution the channel would have if it were the only process acting on its reactant. The accuracy of each method is demonstrated in [1] and [2].
 
-## State dependant waiting time distributions
-You can continuously update IED parameters during the simulation via the `custom_rates_update` callback (called at each iteration / after each event, depending on your setup). This is useful for state-dependent kinetics, where reaction parameters depend on the current system state (e.g., population sizes, resource levels, feedback loops).
+## Choosing a method
 
-Important: delay-based methods (DelaySSA) can become inaccurate when parameters change over time, because scheduled delays are drawn at initiation and cannot be revised once they are placed in the queue. This effectively “freezes” the distribution parameters until the event fires, which is not correct for rapidly changing systems. For time-varying or state-dependent distributions, prefer Laplace Gillespie or MOSAIC, which remain exact under parameter updates (they resample / evaluate rates based on the current state).
+| Method | Set with | Best for | Limitations |
+| --- | --- | --- | --- |
+| MOSAIC (rejection) | `method='MOSAIC'` | Large populations, state-dependent rates, any distribution with a bounded hazard | Hazard must be finite at t = 0 (Gamma and Weibull need a shape ≥ 1) |
+| Laplace Gillespie | `method='Laplace'` | Heavy-tailed or decreasing hazards (Gamma/Weibull with shape < 1, Lomax), state-dependent rates | Only distributions whose survival function is a mixture of exponentials |
+| DelaySSA | `method='Delay'` | Any distribution when rates are constant | Waiting times are frozen when drawn, so rates that change over time are not followed |
 
+When `method` is omitted, NoMaSS uses MOSAIC if the hazard is bounded and Laplace Gillespie otherwise. Channels with zero or several reactants are always Poisson processes with propensity `rate × product of the reactant counts`, because the waiting time of an individual is not defined in that case.
 
-	import nomass
-    [...]
-	def custom_rates_update(SSA_simul):
-	    #A custom function to update the IED parameters of each channels   
-	    
-	    NA = len(SSA_simul.reactant_list['A'])
-		NB = len(SSA_simul.reactant_list['B'])
-	    N = NA + NB
-	    
-	    SSA_simul.reaction_channel_list[2].rate = r1 * (1 - N/100)
-	    #SSA_simul.reaction_channel_list[2].shape_param = 0.5 # You can also adjust the shape param as you whish, although most models will typically only involve changing the rate.
-		
-    [...]
-	populations = SSA_simul.run_simulations(param.Tend, reaction_channel_list, update_function = custom_rates_update, verbose = True)
+## Supported distributions
 
+| Distribution | MOSAIC | Laplace | DelaySSA |
+| --- | :---: | :---: | :---: |
+| Exponential | ✅ | ✅ | ✅ |
+| Gamma | ✅ (α ≥ 1) | ✅ (α ≤ 1) | ✅ |
+| Weibull | ✅ (α ≥ 1) | ✅ (α ≤ 1) | ✅ |
+| Gaussian / Normal | ✅ | ❌ | ✅ |
+| Lognormal | ✅ | ❌ | ✅ |
+| Cauchy | ✅ | ❌ | ✅ |
+| Power law, Pareto type I | ✅ | ❌ | ✅ |
+| Power law, Lomax (Pareto type II) | ✅ | ✅ | ✅ |
 
+Every distribution is parameterised by a nominal `rate` λ, the inverse of the mean waiting time (or of the median when the mean is undefined), and a dimensionless `shape_param` α (full details in Table S1 of [1]):
 
-## Implemented distributions
+| Distribution | `rate` | `shape_param` |
+| --- | --- | --- |
+| Exponential | 1 / mean | unused |
+| Gamma | 1 / mean | shape α |
+| Weibull | 1 / mean | shape k |
+| Gaussian | 1 / mean | std / mean |
+| Lognormal | 1 / mean | std / mean |
+| Cauchy | 1 / median | scale / median |
+| Pareto type I | 1 / median | tail index α |
+| Lomax | 1 / median | tail index α |
 
-NoMaSS implement three main class of methods: MOSAIC [2], Laplace Gillespie [3] and DelaySSA [4]
+Gaussian and Cauchy waiting times are truncated to non-negative values. Aliases such as `'exp'`, `'norm'`, `'lognorm'` and `'weib'` are accepted. Requesting a combination that a method does not support raises an error at channel creation.
 
-| PDF name           |    MOSAIC [2]  |   Laplace [3]  | DelaySSA [4] |
-| ------------------ | :---------: | :---------: | :------: |
-| Exponential        |      ✅      |      ✅      |    ✅    |
-| Gamma              | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |    ✅    |
-| Weibull            | ✅ *(α ≥ 1)* | ✅ *(α ≤ 1)* |    ✅    |
-| Gaussian / Normal  |      ✅      |      ❌      |    ✅    |
-| Lognormal          |      ✅      |      ❌      |    ✅    |
-| Cauchy             |      ✅      |      ❌      |    ✅    |
-| Power-law (Pareto) |      ✅      |      ❌      |    ✅    |
-| Power-law (Lomax)  |      ✅      |      ✅      |    ✅    |
+## State-dependent waiting times
 
-With the current implementation, each distribution is parameterized by a nominal rate λ (inverse mean waiting time — or median when the mean is undefined) and a shape parameter α, as detailed below [Full IED parametrizations are provided in reference [1] Table S1.]:
+Pass `update_function` to `run_simulations` to change the `rate` or `shape_param` of any channel after every iteration, for example to implement feedback or resource limitation ([examples/state_dependent_rates.py](examples/state_dependent_rates.py)):
 
+```python
+def update_rates(sim):
+    N = sim.reactant_population['Cell']
+    sim.reaction_channel_list[0].rate = r0 * (1 - N / K)   # logistic growth
 
-      Exponential (https://en.wikipedia.org/wiki/Exponential_distribution):
-          - rate: 1/mean
-          - shape: None
-      
-      Normal / Gaussian (https://en.wikipedia.org/wiki/Normal_distribution):
-          - rate: 1/mean
-          - shape: std/mean
-      
-      LogNormal (https://en.wikipedia.org/wiki/Log-normal_distribution):
-          - rate: 1/mean
-          - shape: std/mean
-          
-      Gamma (https://en.wikipedia.org/wiki/Gamma_distribution):
-          - rate: 1/mean
-          - shape: α
-          
-      Weibull (https://en.wikipedia.org/wiki/Weibull_distribution):
-          - rate: 1/mean
-          - shape: k
-          
-      Cauchy (https://en.wikipedia.org/wiki/Cauchy_distribution):
-          - rate: 1/median
-          - shape: std/median
+populations = sim.run_simulations(update_function=update_rates)
+```
 
-      Pareto type 1 (https://en.wikipedia.org/wiki/Pareto_distribution):
-          - rate: 1/median
-          - shape: α
+MOSAIC and Laplace Gillespie follow such changes exactly (Laplace rates are rescaled when the rate changes and redrawn when the shape changes). Delay-based channels draw their waiting time once, when the reactant enters the channel, so they cannot follow parameters that change afterwards: avoid `method='Delay'` for rapidly changing systems.
 
-      Lomax / Pareto type 2 (https://en.wikipedia.org/wiki/Lomax_distribution):
-          - rate: 1/median
-          - shape: α
-      
+## Customising NoMaSS
 
-Keep in mind that non-Markovian simulations are only available for reaction channels with a single reactant, as the definition of inter-event time distribution is ambigious for channels with multiple reactants. If a channel is defined without or with more than one reactant, it will be considered as a Poisson process.
+Propensities are always proportional to the reactant counts. For other kinetic laws, subclass `Gillespie_simulation` and override `compute_propensities`; for reactants with individual properties and reaction-specific rules, subclass `Reactant` and override `perform_reaction`. Both classes are documented in [nomass/simulation.py](nomass/simulation.py). Hazards, samplers and the Laplace mixing densities of all distributions are in [nomass/distributions.py](nomass/distributions.py).
 
-*Feel free to drop me an email if you have any question, I will be happy to help !*
+Models can be exported to and imported from SBML with the optional `nomass.sbml` module, see [paper/sbml/README.md](paper/sbml/README.md).
 
+## Repository layout
 
-## Customizing NoMaSS for your system
+```
+nomass/        the engine (distributions, simulation, SBML import/export)
+examples/      short runnable examples
+paper/         scripts, data and precomputed results reproducing the paper's figures
+tests/         pytest suite run by GitHub Actions
+```
 
-The NoMaSS framework offer countless possibilities and highly customizable models. However, with the current implementation, reactions propensities are always proportional to the number of reactant. For example, the reaction (A+B -> C) will have a propensity of *a = A x B x r*. In some models, you might want to implement more complex formula for the reaction propensities, (such as for example *a = A x B x r / D*, where D is a parameter that evolves with the system). To do so, you can  directly modify the `NoMaSS/compute_propensities` function according to your need. Likewise, you might want to set up specific rejection rules if your reactants have some individual properties, and modify them appropriatly. To do so, first define your reactant properties in the `NoMaSS/Reactant` class, and then define your reaction specific rules in `NoMaSS/perform_reaction`.
+The three biochemical systems of the paper (bacterial growth, stem cell differentiation and RNA transcription), the benchmarks and the SBML tooling live in `paper/`, with a figure-to-script table in [paper/README.md](paper/README.md).
 
-*Feel free to drop me an email if you are not sure how to do it, I will be happy to help !*
+## Citation
 
+If you use NoMaSS, please cite
+
+> Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. *Gillespie-based simulation and inference for non-Markovian stochastic reaction networks.* Briefings in Bioinformatics 27(5), 2026. doi:[10.1093/bib/bbag486](https://doi.org/10.1093/bib/bbag486)
+
+```bibtex
+@article{pelissier2026nomass,
+  title   = {Gillespie-based simulation and inference for non-Markovian stochastic reaction networks},
+  author  = {P{\'e}lissier, Aur{\'e}lien and Phan, M. and Beerenwinkel, Niko and Rodr{\'i}guez Mart{\'i}nez, Mar{\'i}a},
+  journal = {Briefings in Bioinformatics},
+  volume  = {27},
+  number  = {5},
+  year    = {2026},
+  doi     = {10.1093/bib/bbag486}
+}
+```
+
+*Questions are welcome, feel free to open an issue or drop me an email.*
 
 ## References
 
-[1] Pélissier, A, et al. "Gillespie-Based Methods for Non-Markovian Stochastic Simulation: A Practical Guide". *Under Review* (2026)
+[1] Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. "Gillespie-based simulation and inference for non-Markovian stochastic reaction networks". *Briefings in Bioinformatics* 27(5) (2026). doi:10.1093/bib/bbag486
 
-[2] Pélissier, A, et al. "Unifying non-Markovian Dynamics and Agent Heterogeneity in Scalable Stochastic Networks". *Nature Communication* (2026)
+[2] Pélissier A., et al. "Unifying non-Markovian Dynamics and Agent Heterogeneity in Scalable Stochastic Networks". *Nature Communications* (2026).
 
-[3] Masuda, Naoki, and Luis EC Rocha. "A Gillespie algorithm for non-Markovian stochastic processes." *Siam Review 60.1* (2018): 95-115.
+[3] Masuda N., Rocha L. E. C. "A Gillespie algorithm for non-Markovian stochastic processes". *SIAM Review* 60(1), 95-115 (2018).
 
-[4] David F Anderson. “A modified next reaction method for simulating chemical systems with time dependent propensities and delays”. *The Journal of chemical physics 127.21* (2007).
+[4] Anderson D. F. "A modified next reaction method for simulating chemical systems with time dependent propensities and delays". *The Journal of Chemical Physics* 127(21) (2007).
