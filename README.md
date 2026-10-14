@@ -149,6 +149,13 @@ sim = nomass.Gillespie_simulation({'Cell': 20}, [division, death], Tend=6, on_re
 
 Set `transfer_identity=True` on a channel such as `'Gon -> Gon + mRNA'` to keep the same individual (with its properties and the clocks of its other channels) instead of replacing it. For kinetic laws that are not proportional to the reactant counts, subclass `Gillespie_simulation` and override `compute_propensities`; the full API is described in [docs/api.md](docs/api.md), and the hazards, samplers and Laplace mixing densities of all distributions are in [nomass/distributions.py](nomass/distributions.py).
 
+## Useful options
+
+* `method='Delay'` (per channel) draws the waiting time of each individual when it enters the channel and schedules the event in a priority queue, the DelaySSA scheme. It is exact for every distribution, including those whose hazard diverges at t = 0, at the cost of O(log N) queue operations per event and of waiting times that cannot follow later rate changes.
+* `transfer_identity=True` (per channel) keeps the identity and the internal clocks of a reactant that also appears among the products, for example `'Gon -> Gon + mRNA'`.
+* `min_ratio` (default 20, argument of `Gillespie_simulation`) sets the accuracy of the MOSAIC rejection step: the total propensity is kept at least `min_ratio` times above the rate bound of every non-Markovian channel, so that bounds of increasing hazards are refreshed often enough (see the error analysis in [1]). Larger values are more conservative and slower.
+* `max_population` stops a realisation once the total population exceeds a threshold, and `seed` makes the run reproducible.
+
 ## Repository layout
 
 ```
