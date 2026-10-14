@@ -3,8 +3,6 @@
 pandas
 seaborn
 openpyxl          # reading the single-cell .xlsx data
-scikit-learn      # mean_squared_error in the fitting scripts
 SALib             # Sobol sensitivity analysis (fig4D)
-pyemd             # earth mover's distance (fig1DE, figS1S2); needs a C++ compiler
-python-libsbml    # SBML import/export (paper/sbml)
-simplesbml
+# dlib            # optional: maxLIPO optimiser used for Table S1 (needs CMake and a C++ compiler);
+#                 # without it the script falls back to scipy's differential evolution

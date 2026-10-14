@@ -84,22 +84,22 @@ def Gillespie_kinetics(param_list, plot = True, plot_distrib = True, N_simulatio
     param.Tend = Tend
     #initialise reaction channels
     reaction_channel_list = []
-    channel = gil.Reaction_channel(param,rate=r_on, shape_param=alpha_on, distribution = 'Gamma', name = 'Gene activation: Goff -> Gon')
+    channel = gil.Reaction_channel(rate=r_on, shape_param=alpha_on, distribution = 'Gamma', name = 'Gene activation: Goff -> Gon')
     channel.reactants = ['Goff']
     channel.products = ['Gon']
     reaction_channel_list.append(channel)
     
-    channel = gil.Reaction_channel(param,rate=r_off, shape_param=alpha_off, distribution = 'Gamma', name = 'Gene deactivation: Gon -> Goff')
+    channel = gil.Reaction_channel(rate=r_off, shape_param=alpha_off, distribution = 'Gamma', name = 'Gene deactivation: Gon -> Goff')
     channel.reactants = ['Gon']
     channel.products = ['Goff']
     reaction_channel_list.append(channel)
     
-    channel = gil.Reaction_channel(param,rate=r_prod, shape_param=alpha_prod, distribution = 'Gamma',  name='RNA production: Gon -> Gon + mRNA', transfer_identity = True)
+    channel = gil.Reaction_channel(rate=r_prod, shape_param=alpha_prod, distribution = 'Gamma',  name='RNA production: Gon -> Gon + mRNA', transfer_identity = True)
     channel.reactants = ['Gon']
     channel.products = ['Gon','mRNA']
     reaction_channel_list.append(channel)
     
-    channel = gil.Reaction_channel(param,rate=r_deg, distribution = 'Exponential',  name='RNA degradation: mRNA -> 0')
+    channel = gil.Reaction_channel(rate=r_deg, distribution = 'Exponential',  name='RNA degradation: mRNA -> 0')
     channel.reactants = ['mRNA']
     channel.products = []
     reaction_channel_list.append(channel)

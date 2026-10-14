@@ -12,29 +12,21 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # so that `import nomass` works without installing it
 import nomass
 
-
-class param:
-    Tend = 10            # length of the simulation
-    N_simulations = 20   # number of independent realisations
-    timepoints = 100     # number of recorded time points (plots only)
-    unit = 'h'           # time unit (plots only)
-
-
 # Reaction channels: one waiting-time distribution and one method each
-r1 = nomass.Reaction_channel(param, rate=1, shape_param=20, distribution='Gamma', method='Delay',
-                             reactants=['A'], products=['B'], name='A -> B')
-r2 = nomass.Reaction_channel(param, rate=4, shape_param=5, distribution='Weibull', method='MOSAIC',
-                             reactants=['B'], products=['C', 'A'], name='B -> C + A')
-r3 = nomass.Reaction_channel(param, rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace',
-                             reactants=['C'], products=[], name='C -> 0')
-r4 = nomass.Reaction_channel(param, rate=0.03,  # two reactants: Poisson process
-                             reactants=['A', 'B'], products=[], name='A + B -> 0')
+r1 = nomass.Reaction_channel('A -> B', rate=1, shape_param=20, distribution='Gamma', method='Delay')
+r2 = nomass.Reaction_channel('B -> C + A', rate=4, shape_param=5, distribution='Weibull', method='MOSAIC')
+r3 = nomass.Reaction_channel('C -> 0', rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace')
+r4 = nomass.Reaction_channel('A + B -> 0', rate=0.03)   # two reactants: Poisson process
 
 # Initial population (every species must be listed)
 N_init = {'A': 300, 'B': 0, 'C': 0}
 
 # Build and run the model
-sim = nomass.Gillespie_simulation(N_init, param, [r1, r2, r3, r4])
+sim = nomass.Gillespie_simulation(N_init, [r1, r2, r3, r4],
+                                  Tend=10,            # length of the simulation
+                                  N_simulations=20,   # number of independent realisations
+                                  timepoints=100,     # number of recorded time points
+                                  unit='h')           # time unit (plots only)
 print(sim)
 populations = sim.run_simulations(verbose=True)   # array (N_simulations, timepoints, species + total)
 

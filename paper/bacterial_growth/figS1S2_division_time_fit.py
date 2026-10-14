@@ -7,7 +7,7 @@ import scipy.stats as stat
 from math import log, gamma, exp, factorial, pi, sqrt, erf, atan
 from scipy.special import gammainc
 
-from pyemd import emd_samples
+from scipy.stats import wasserstein_distance as emd_samples  # 1D earth mover's distance
 
 def main():
     

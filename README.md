@@ -43,28 +43,22 @@ The example below ([examples/toy_example.py](examples/toy_example.py)) simulates
 ```python
 import nomass
 
-class param:
-    Tend = 10            # length of the simulation
-    N_simulations = 20   # number of independent realisations
-    timepoints = 100     # number of recorded time points (plots only)
-    unit = 'h'           # time unit (plots only)
-
 # Reaction channels: one waiting-time distribution and one method each
-r1 = nomass.Reaction_channel(param, rate=1, shape_param=20, distribution='Gamma', method='Delay',
-                             reactants=['A'], products=['B'], name='A -> B')
-r2 = nomass.Reaction_channel(param, rate=4, shape_param=5, distribution='Weibull', method='MOSAIC',
-                             reactants=['B'], products=['C', 'A'], name='B -> C + A')
-r3 = nomass.Reaction_channel(param, rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace',
-                             reactants=['C'], products=[], name='C -> 0')
-r4 = nomass.Reaction_channel(param, rate=0.03,  # two reactants: Poisson process
-                             reactants=['A', 'B'], products=[], name='A + B -> 0')
+r1 = nomass.Reaction_channel('A -> B', rate=1, shape_param=20, distribution='Gamma', method='Delay')
+r2 = nomass.Reaction_channel('B -> C + A', rate=4, shape_param=5, distribution='Weibull', method='MOSAIC')
+r3 = nomass.Reaction_channel('C -> 0', rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace')
+r4 = nomass.Reaction_channel('A + B -> 0', rate=0.03)   # two reactants: Poisson process
 
 # Initial population (every species must be listed)
 N_init = {'A': 300, 'B': 0, 'C': 0}
 
 # Build and run the model
-sim = nomass.Gillespie_simulation(N_init, param, [r1, r2, r3, r4])
-populations = sim.run_simulations(verbose=True)   # array (N_simulations, timepoints, species + total)
+sim = nomass.Gillespie_simulation(N_init, [r1, r2, r3, r4],
+                                  Tend=10,            # length of the simulation
+                                  N_simulations=20,   # number of independent realisations
+                                  timepoints=100,     # number of recorded time points
+                                  unit='h')           # time unit (plots only)
+populations = sim.run_simulations()   # array (N_simulations, timepoints, species + total)
 
 # Plot the results
 sim.plot_inter_event_time_distribution()
@@ -79,6 +73,8 @@ The simulation runs in a few seconds and produces the figures below (pass `verbo
 
 The oscillations created by the nearly deterministic Gamma waiting times are clearly visible. The *theoretical* distributions do not match the *simulated* ones exactly, even with many realisations, and this is expected: species A and B are reactants of two channels at the same time, and the theoretical curve is the distribution the channel would have if it were the only process acting on its reactant. The accuracy of each method is demonstrated in [1] and [2].
 
+Reactions are written as strings: `'A + B -> C'`, `'0 -> A'` (creation), `'A -> 0'` (degradation), `'2 A -> B'` (stoichiometry). The plotting methods return their matplotlib figure and axes, so pass `show=False` to customise a figure before displaying it.
+
 ## Choosing a method
 
 | Method | Set with | Best for | Limitations |
@@ -88,6 +84,8 @@ The oscillations created by the nearly deterministic Gamma waiting times are cle
 | DelaySSA | `method='Delay'` | Any distribution when rates are constant | Waiting times are frozen when drawn, so rates that change over time are not followed |
 
 When `method` is omitted, NoMaSS uses MOSAIC if the hazard is bounded and Laplace Gillespie otherwise. Channels with zero or several reactants are always Poisson processes with propensity `rate × product of the reactant counts`, because the waiting time of an individual is not defined in that case.
+
+A Gamma waiting time with an integer shape can also be embedded in a chain of exponential stages (hidden Markov embedding); [examples/erlang_embedding.py](examples/erlang_embedding.py) compares the two descriptions.
 
 ## Supported distributions
 
@@ -115,52 +113,63 @@ Every distribution is parameterised by a nominal `rate` λ, the inverse of the m
 | Pareto type I | 1 / median | tail index α |
 | Lomax | 1 / median | tail index α |
 
-Gaussian and Cauchy waiting times are truncated to non-negative values. Aliases such as `'exp'`, `'norm'`, `'lognorm'` and `'weib'` are accepted. Requesting a combination that a method does not support raises an error at channel creation.
+Gaussian and Cauchy waiting times are truncated to non-negative values. Aliases such as `'exp'`, `'norm'`, `'lognorm'` and `'weib'` are accepted. Requesting a combination that a method does not support raises an error at channel creation. [examples/all_distributions.py](examples/all_distributions.py) runs a cycle through all eight distributions.
 
 ## State-dependent waiting times
 
-Pass `update_function` to `run_simulations` to change the `rate` or `shape_param` of any channel after every iteration, for example to implement feedback or resource limitation ([examples/state_dependent_rates.py](examples/state_dependent_rates.py)):
+Pass `update_function` to change the `rate` or `shape_param` of any channel after every iteration, for example to implement feedback or resource limitation ([examples/state_dependent_rates.py](examples/state_dependent_rates.py)):
 
 ```python
 def update_rates(sim):
     N = sim.reactant_population['Cell']
     sim.reaction_channel_list[0].rate = r0 * (1 - N / K)   # logistic growth
 
-populations = sim.run_simulations(update_function=update_rates)
+sim = nomass.Gillespie_simulation({'Cell': 5}, [division], Tend=25, update_function=update_rates)
+populations = sim.run_simulations()
 ```
 
 MOSAIC and Laplace Gillespie follow such changes exactly (Laplace rates are rescaled when the rate changes and redrawn when the shape changes). Delay-based channels draw their waiting time once, when the reactant enters the channel, so they cannot follow parameters that change afterwards: avoid `method='Delay'` for rapidly changing systems.
 
-## Customising NoMaSS
+## Individual properties
 
-Propensities are always proportional to the reactant counts. For other kinetic laws, subclass `Gillespie_simulation` and override `compute_propensities`; for reactants with individual properties and reaction-specific rules, subclass `Reactant` and override `perform_reaction`. Both classes are documented in [nomass/simulation.py](nomass/simulation.py). Hazards, samplers and the Laplace mixing densities of all distributions are in [nomass/distributions.py](nomass/distributions.py).
+Every individual is a `nomass.Reactant` object that can carry arbitrary attributes. The `on_reaction` hook is called after each accepted reaction with the consumed and produced individuals, which is where properties are set or inherited ([examples/individual_properties.py](examples/individual_properties.py)):
 
-Models can be exported to and imported from SBML with the optional `nomass.sbml` module, see [paper/sbml/README.md](paper/sbml/README.md).
+```python
+def inherit(sim, channel, consumed, produced):
+    if channel is division:
+        for daughter in produced:
+            daughter.generation = consumed[0].generation + 1
+
+sim = nomass.Gillespie_simulation({'Cell': 20}, [division, death], Tend=6, on_reaction=inherit)
+```
+
+Set `transfer_identity=True` on a channel such as `'Gon -> Gon + mRNA'` to keep the same individual (with its properties and the clocks of its other channels) instead of replacing it. For kinetic laws that are not proportional to the reactant counts, subclass `Gillespie_simulation` and override `compute_propensities`; both classes are documented in [nomass/simulation.py](nomass/simulation.py), and the hazards, samplers and Laplace mixing densities of all distributions are in [nomass/distributions.py](nomass/distributions.py).
 
 ## Repository layout
 
 ```
-nomass/        the engine (distributions, simulation, SBML import/export)
+nomass/        the engine (distributions and simulation)
 examples/      short runnable examples
 paper/         scripts, data and precomputed results reproducing the paper's figures
 tests/         pytest suite run by GitHub Actions
 ```
 
-The three biochemical systems of the paper (bacterial growth, stem cell differentiation and RNA transcription), the benchmarks and the SBML tooling live in `paper/`, with a figure-to-script table in [paper/README.md](paper/README.md).
+The biochemical systems of the paper (bacterial growth, stem cell differentiation and RNA transcription) live in `paper/`, with a figure-to-script table in [paper/README.md](paper/README.md).
 
 ## Citation
 
 If you use NoMaSS, please cite
 
-> Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. *Gillespie-based simulation and inference for non-Markovian stochastic reaction networks.* Briefings in Bioinformatics 27(5), 2026. doi:[10.1093/bib/bbag486](https://doi.org/10.1093/bib/bbag486)
+> Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. *Gillespie-based simulation and inference for non-Markovian stochastic reaction networks.* Briefings in Bioinformatics 27(5), bbag486 (2026). doi:[10.1093/bib/bbag486](https://doi.org/10.1093/bib/bbag486)
 
 ```bibtex
 @article{pelissier2026nomass,
   title   = {Gillespie-based simulation and inference for non-Markovian stochastic reaction networks},
-  author  = {P{\'e}lissier, Aur{\'e}lien and Phan, M. and Beerenwinkel, Niko and Rodr{\'i}guez Mart{\'i}nez, Mar{\'i}a},
+  author  = {P{\'e}lissier, Aur{\'e}lien and Phan, Miroslav and Beerenwinkel, Niko and Rodr{\'i}guez Mart{\'i}nez, Mar{\'i}a},
   journal = {Briefings in Bioinformatics},
   volume  = {27},
   number  = {5},
+  pages   = {bbag486},
   year    = {2026},
   doi     = {10.1093/bib/bbag486}
 }
@@ -170,10 +179,10 @@ If you use NoMaSS, please cite
 
 ## References
 
-[1] Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. "Gillespie-based simulation and inference for non-Markovian stochastic reaction networks". *Briefings in Bioinformatics* 27(5) (2026). doi:10.1093/bib/bbag486
+[1] Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. Gillespie-based simulation and inference for non-Markovian stochastic reaction networks. *Briefings in Bioinformatics* **27**(5), bbag486 (2026). doi:[10.1093/bib/bbag486](https://doi.org/10.1093/bib/bbag486)
 
-[2] Pélissier A., et al. "Unifying non-Markovian Dynamics and Agent Heterogeneity in Scalable Stochastic Networks". *Nature Communications* (2026).
+[2] Pélissier A., Phan M., Le Bail D., Beerenwinkel N., Rodríguez Martínez M. Unifying non-Markovian dynamics and agent heterogeneity in scalable stochastic networks. *Nature Communications* **17**, 3345 (2026). doi:[10.1038/s41467-026-69817-y](https://doi.org/10.1038/s41467-026-69817-y)
 
-[3] Masuda N., Rocha L. E. C. "A Gillespie algorithm for non-Markovian stochastic processes". *SIAM Review* 60(1), 95-115 (2018).
+[3] Masuda N., Rocha L. E. C. A Gillespie algorithm for non-Markovian stochastic processes. *SIAM Review* **60**(1), 95-115 (2018). doi:[10.1137/16M1055876](https://doi.org/10.1137/16M1055876)
 
-[4] Anderson D. F. "A modified next reaction method for simulating chemical systems with time dependent propensities and delays". *The Journal of Chemical Physics* 127(21) (2007).
+[4] Anderson D. F. A modified next reaction method for simulating chemical systems with time dependent propensities and delays. *The Journal of Chemical Physics* **127**(21), 214107 (2007). doi:[10.1063/1.2799998](https://doi.org/10.1063/1.2799998)

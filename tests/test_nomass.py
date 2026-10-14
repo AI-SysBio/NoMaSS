@@ -6,7 +6,9 @@ theoretical distribution (Kolmogorov-Smirnov). Seeds are fixed, so failures
 are deterministic.
 """
 import os
+import random
 import runpy
+import warnings
 
 import numpy as np
 import pytest
@@ -14,16 +16,9 @@ import scipy.stats as st
 
 import nomass
 from nomass import distributions as D
+from nomass.simulation import _WeightedPool
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-class Param:
-    Tend = 30
-    N_simulations = 1
-    timepoints = 50
-    unit = 'h'
-
 
 CASES = [
     ('Exponential', 1.0), ('Gamma', 4.0), ('Gamma', 0.5), ('Weibull', 2.5), ('Weibull', 0.6),
@@ -35,9 +30,9 @@ COMBOS = [(d, a, m) for d, a in CASES for m in nomass.METHODS if D.method_suppor
 
 @pytest.mark.parametrize('distribution,shape,method', COMBOS)
 def test_waiting_times_follow_the_theoretical_distribution(distribution, shape, method):
-    channel = nomass.Reaction_channel(Param, rate=1.0, shape_param=shape, distribution=distribution,
-                                      method=method, reactants=['A'], products=['B'], name='A -> B')
-    sim = nomass.Gillespie_simulation({'A': 2000, 'B': 0}, Param, [channel], seed=1)
+    channel = nomass.Reaction_channel('A -> B', rate=1.0, shape_param=shape, distribution=distribution,
+                                      method=method)
+    sim = nomass.Gillespie_simulation({'A': 2000, 'B': 0}, [channel], Tend=30, timepoints=50, seed=1)
     sim.run_simulations(verbose=False)
 
     waits = np.asarray(channel.wait_times)
@@ -48,20 +43,12 @@ def test_waiting_times_follow_the_theoretical_distribution(distribution, shape, 
 
 
 def test_methods_can_be_mixed_in_one_model():
-    class P:
-        Tend = 10
-        N_simulations = 3
-        timepoints = 100
-        unit = 'h'
-
-    r1 = nomass.Reaction_channel(P, rate=1, shape_param=20, distribution='Gamma', method='Delay',
-                                 reactants=['A'], products=['B'], name='A -> B')
-    r2 = nomass.Reaction_channel(P, rate=4, shape_param=5, distribution='Weibull', method='MOSAIC',
-                                 reactants=['B'], products=['C', 'A'], name='B -> C + A')
-    r3 = nomass.Reaction_channel(P, rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace',
-                                 reactants=['C'], products=[], name='C -> 0')
-    r4 = nomass.Reaction_channel(P, rate=0.03, reactants=['A', 'B'], products=[], name='A + B -> 0')
-    sim = nomass.Gillespie_simulation({'A': 300, 'B': 0, 'C': 0}, P, [r1, r2, r3, r4], seed=3)
+    r1 = nomass.Reaction_channel('A -> B', rate=1, shape_param=20, distribution='Gamma', method='Delay')
+    r2 = nomass.Reaction_channel('B -> C + A', rate=4, shape_param=5, distribution='Weibull', method='MOSAIC')
+    r3 = nomass.Reaction_channel('C -> 0', rate=0.03, shape_param=0.5, distribution='Gamma', method='Laplace')
+    r4 = nomass.Reaction_channel('A + B -> 0', rate=0.03)
+    sim = nomass.Gillespie_simulation({'A': 300, 'B': 0, 'C': 0}, [r1, r2, r3, r4],
+                                      Tend=10, N_simulations=3, timepoints=100, unit='h', seed=3)
     pop = sim.run_simulations(verbose=False)
 
     assert pop.shape == (3, 100, 4)
@@ -73,19 +60,51 @@ def test_methods_can_be_mixed_in_one_model():
     assert r1.number_of_rejected_reactions == 0  # Delay never rejects
     assert abs(np.mean(r1.wait_times) - 1.0) < 0.05  # A -> B is only consumed by r1 and r4
 
-    # plotting works headless
-    sim.plot_populations(show=False)
-    sim.plot_populations_single(show=False)
-    sim.plot_inter_event_time_distribution(show=False, verbose=False)
+    # plots work headless and return their figures
+    fig, ax = sim.plot_populations(show=False)
+    assert ax.get_ylabel() == 'Population'
+    fig, ax = sim.plot_populations_single(show=False)
+    figures = sim.plot_inter_event_time_distribution(show=False, verbose=False)
+    assert len(figures) == 3  # the Poisson channel has no waiting-time distribution
+
+
+def test_reaction_strings():
+    assert nomass.parse_reaction('A + B -> C') == (['A', 'B'], ['C'])
+    assert nomass.parse_reaction('0 -> A') == ([], ['A'])
+    assert nomass.parse_reaction('A -> 0') == (['A'], [])
+    assert nomass.parse_reaction(' -> A') == ([], ['A'])
+    assert nomass.parse_reaction('2 A -> B') == (['A', 'A'], ['B'])
+    assert nomass.parse_reaction('Gon -> Gon + mRNA') == (['Gon'], ['Gon', 'mRNA'])
+    ch = nomass.Reaction_channel('A + B -> C', rate=2)
+    assert ch.reactants == ['A', 'B'] and ch.products == ['C'] and ch.name == 'A + B -> C'
+    ch = nomass.Reaction_channel(reactants=['A'], products=[], rate=1)
+    assert ch.name == 'A -> 0'
+    with pytest.raises(ValueError, match='exactly one'):
+        nomass.parse_reaction('A + B')
+    with pytest.raises(ValueError, match='either'):
+        nomass.Reaction_channel('A -> B', reactants=['A'])
+
+
+def test_legacy_param_object_is_still_accepted():
+    class param:
+        Tend = 5
+        N_simulations = 2
+        timepoints = 20
+        unit = 'h'
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter('always')
+        ch = nomass.Reaction_channel(param, rate=1, name='A -> B')
+        assert any(issubclass(x.category, DeprecationWarning) for x in w)
+    ch.reactants, ch.products = ['A'], ['B']
+    sim = nomass.Gillespie_simulation({'A': 50, 'B': 0}, param)
+    sim.reaction_channel_list = [ch]
+    assert sim.Tend == 5 and sim.N_simulations == 2 and sim.unit == 'h' and sim.param.timepoints == 20
+    pop = sim.run_simulations(param.Tend, verbose=False)
+    assert pop.shape == (2, 20, 3)
 
 
 def test_update_function_implements_state_dependent_rates():
-    class P:
-        Tend = 25
-        N_simulations = 2
-        timepoints = 50
-        unit = 'h'
-
     K = 200
 
     def update(sim):
@@ -93,58 +112,106 @@ def test_update_function_implements_state_dependent_rates():
         sim.reaction_channel_list[0].rate = max(1.0 * (1 - N / K), 1e-9)
 
     for method, shape in (('MOSAIC', 5), ('Laplace', 0.5)):
-        division = nomass.Reaction_channel(P, rate=1, shape_param=shape, distribution='Gamma', method=method,
-                                           reactants=['A'], products=['A', 'A'], name='division')
-        sim = nomass.Gillespie_simulation({'A': 10}, P, [division], seed=5)
-        pop = sim.run_simulations(update_function=update, verbose=False)
+        division = nomass.Reaction_channel('A -> A + A', rate=1, shape_param=shape, distribution='Gamma',
+                                           method=method)
+        sim = nomass.Gillespie_simulation({'A': 10}, [division], Tend=25, N_simulations=2, timepoints=50,
+                                          seed=5, update_function=update)
+        pop = sim.run_simulations(verbose=False)
         assert np.all(np.abs(pop[:, -1, 0] - K) <= 10), method
 
 
-def test_transfer_identity_keeps_the_clocks_of_other_channels():
-    class P:
-        Tend = 50
-        N_simulations = 1
-        timepoints = 50
-        unit = 'min'
+def test_on_reaction_hook_receives_individuals():
+    division = nomass.Reaction_channel('Cell -> Cell + Cell', rate=1, shape_param=5, distribution='Gamma')
+    death = nomass.Reaction_channel('Cell -> 0', rate=0.2)
+    seen = {'div': 0, 'death': 0}
 
-    on = nomass.Reaction_channel(P, rate=1, shape_param=5, distribution='Gamma',
-                                 reactants=['Goff'], products=['Gon'], name='on')
-    off = nomass.Reaction_channel(P, rate=1, shape_param=5, distribution='Gamma',
-                                  reactants=['Gon'], products=['Goff'], name='off')
-    prod = nomass.Reaction_channel(P, rate=10, reactants=['Gon'], products=['Gon', 'mRNA'],
-                                   transfer_identity=True, name='prod')
-    deg = nomass.Reaction_channel(P, rate=1, reactants=['mRNA'], products=[], name='deg')
-    sim = nomass.Gillespie_simulation({'Goff': 200, 'Gon': 0, 'mRNA': 0}, P, [on, off, prod, deg], seed=7)
+    def hook(sim, channel, consumed, produced):
+        if channel is division:
+            assert len(consumed) == 1 and len(produced) == 2
+            assert isinstance(consumed[0], nomass.Reactant)
+            assert consumed[0] not in sim.reactant_list['Cell']       # the mother is gone
+            assert all(p in sim.reactant_list['Cell'] for p in produced)
+            for daughter in produced:
+                daughter.generation = consumed[0].generation + 1
+            seen['div'] += 1
+        else:
+            assert len(consumed) == 1 and produced == []
+            seen['death'] += 1
+
+    sim = nomass.Gillespie_simulation({'Cell': 20}, [division, death], Tend=4, seed=11, on_reaction=hook)
+    sim.reinitialize_pop()
+    for cell in sim.reactant_list['Cell']:
+        cell.generation = 0
+    sim.run_simulation()
+    assert seen['div'] > 0 and seen['death'] > 0
+    assert seen['div'] == division.number_of_accepted_reactions
+    assert max(c.generation for c in sim.reactant_list['Cell']) >= 2
+
+
+def test_transfer_identity_keeps_the_clocks_of_other_channels():
+    on = nomass.Reaction_channel('Goff -> Gon', rate=1, shape_param=5, distribution='Gamma')
+    off = nomass.Reaction_channel('Gon -> Goff', rate=1, shape_param=5, distribution='Gamma')
+    prod = nomass.Reaction_channel('Gon -> Gon + mRNA', rate=10, transfer_identity=True)
+    deg = nomass.Reaction_channel('mRNA -> 0', rate=1)
+    kept = []
+
+    def hook(sim, channel, consumed, produced):
+        if channel is prod:
+            kept.append(consumed[0] is produced[0])
+
+    sim = nomass.Gillespie_simulation({'Goff': 200, 'Gon': 0, 'mRNA': 0}, [on, off, prod, deg],
+                                      Tend=50, timepoints=50, unit='min', seed=7, on_reaction=hook)
     pop = sim.run_simulations(verbose=False)
 
     # if the Gon clock were reset at every transcription event (10x faster than
     # deactivation), the deactivation waiting time would be much shorter than 1
     assert abs(np.mean(off.wait_times) - 1.0) < 0.1
     assert pop[0, -1, 0] + pop[0, -1, 1] == 200  # genes are conserved
+    assert kept and all(kept)                     # same individual before and after
+
+
+def test_weighted_pool_samples_proportionally_to_weights():
+    random.seed(0)
+    pool = _WeightedPool()
+    for key, w in [('a', 1.0), ('b', 2.0), ('c', 3.0), ('d', 4.0)]:
+        pool.add(key, w)
+    pool.remove('b')
+    pool.set('c', 6.0)        # weights now a:1, c:6, d:4
+    pool.add('e', 9.0)        # reuses b's slot -> a:1, c:6, d:4, e:9
+    pool.rescale(2.0)
+    assert abs(pool.total() - 40.0) < 1e-9
+    assert len(pool) == 4 and 'b' not in pool
+    counts = {k: 0 for k in 'acde'}
+    n = 40000
+    for _ in range(n):
+        counts[pool.sample()] += 1
+    for key, expected in [('a', 1), ('c', 6), ('d', 4), ('e', 9)]:
+        assert abs(counts[key] / n - expected / 20) < 0.01, key
 
 
 def test_default_method_selection():
-    assert nomass.Reaction_channel(Param, distribution='Gamma', shape_param=5).method == 'MOSAIC'
-    assert nomass.Reaction_channel(Param, distribution='Gamma', shape_param=0.5).method == 'Laplace'
-    assert nomass.Reaction_channel(Param, distribution='Weibull', shape_param=0.5).method == 'Laplace'
-    assert nomass.Reaction_channel(Param, distribution='Lognormal', shape_param=0.5).method == 'MOSAIC'
-    assert nomass.Reaction_channel(Param, distribution='weib', shape_param=1).distribution == 'Exponential'
+    assert nomass.Reaction_channel('A -> B', distribution='Gamma', shape_param=5).method == 'MOSAIC'
+    assert nomass.Reaction_channel('A -> B', distribution='Gamma', shape_param=0.5).method == 'Laplace'
+    assert nomass.Reaction_channel('A -> B', distribution='Weibull', shape_param=0.5).method == 'Laplace'
+    assert nomass.Reaction_channel('A -> B', distribution='Lognormal', shape_param=0.5).method == 'MOSAIC'
+    assert nomass.Reaction_channel('A -> B', distribution='weib', shape_param=1).distribution == 'Exponential'
 
 
 def test_invalid_models_raise_clear_errors():
     with pytest.raises(ValueError, match='Laplace'):
-        nomass.Reaction_channel(Param, distribution='Gaussian', shape_param=0.2, method='Laplace')
+        nomass.Reaction_channel('A -> B', distribution='Gaussian', shape_param=0.2, method='Laplace')
     with pytest.raises(ValueError, match='MOSAIC'):
-        nomass.Reaction_channel(Param, distribution='Gamma', shape_param=0.5, method='MOSAIC')
+        nomass.Reaction_channel('A -> B', distribution='Gamma', shape_param=0.5, method='MOSAIC')
     with pytest.raises(ValueError, match='Unsupported distribution'):
-        nomass.Reaction_channel(Param, distribution='foo')
+        nomass.Reaction_channel('A -> B', distribution='foo')
     with pytest.raises(ValueError, match='negative'):
-        nomass.Reaction_channel(Param, rate=-1)
+        nomass.Reaction_channel('A -> B', rate=-1)
     with pytest.raises(ValueError, match="missing from N_init"):
-        ch = nomass.Reaction_channel(Param, reactants=['A'], products=['Z'])
-        nomass.Gillespie_simulation({'A': 1}, Param, [ch]).run_simulations(verbose=False)
+        nomass.Gillespie_simulation({'A': 1}, [nomass.Reaction_channel('A -> Z')]).run_simulations(verbose=False)
     with pytest.raises(ValueError, match='No reaction channel'):
-        nomass.Gillespie_simulation({'A': 1}, Param).run_simulations(verbose=False)
+        nomass.Gillespie_simulation({'A': 1}).run_simulations(verbose=False)
+    with pytest.raises(TypeError, match='Unexpected keyword'):
+        nomass.Gillespie_simulation({'A': 1}, Tend=1, foo=2)
 
 
 def test_laplace_mixing_densities_reproduce_the_survival_functions():
@@ -166,8 +233,8 @@ def test_hazards_match_pdf_over_survival():
                 assert abs(D.hazard(t, distribution, 2.0, shape) - ref) <= 1e-2 * ref + 1e-9
 
 
-@pytest.mark.parametrize('script', ['toy_example.py', 'all_distributions.py',
-                                    'state_dependent_rates.py', 'creation_and_interaction.py'])
+@pytest.mark.parametrize('script', ['toy_example.py', 'all_distributions.py', 'state_dependent_rates.py',
+                                    'individual_properties.py', 'erlang_embedding.py'])
 def test_examples_run(script, monkeypatch):
     import matplotlib.pyplot as plt
     monkeypatch.setattr(plt, 'show', lambda *a, **k: plt.close('all'))

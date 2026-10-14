@@ -6,7 +6,6 @@ import seaborn as sns
 import random
 from math import log, gamma
 from scipy.optimize import curve_fit
-from sklearn.metrics import mean_squared_error
 from scipy import stats
 
 import os, sys
@@ -89,11 +88,11 @@ def main():
         N_init['Q'] = 0
         
         #initialise reaction channels
-        S_division = gil.Reaction_channel(param,rate=r_div, shape_param=alpha_div, distribution = distribution_div, name='S -> S+Q')
+        S_division = gil.Reaction_channel(rate=r_div, shape_param=alpha_div, distribution = distribution_div, name='S -> S+Q')
         S_division.reactants = ['S']
         S_division.products = ['S', 'Q']
         
-        SQ_differentiation = gil.Reaction_channel(param,rate=r_diff, shape_param=alpha_diff, distribution = distribution_diff, name='Q -> S')
+        SQ_differentiation = gil.Reaction_channel(rate=r_diff, shape_param=alpha_diff, distribution = distribution_diff, name='Q -> S')
         SQ_differentiation.reactants = ['Q']
         SQ_differentiation.products = ['S']
     
@@ -169,7 +168,7 @@ def quantify_oscillations(population_Q, Verbose = False):
             plt.ylabel('Population')
             plt.show()
     
-        Score = mean_squared_error(ydata, yfit)
+        Score = np.mean((np.asarray(ydata) - np.asarray(yfit)) ** 2)
         Scores.append(Score)
     
     return np.mean(Scores), np.std(Scores)

@@ -46,11 +46,11 @@ def main():
     N_init['NPC'] = 0
     
     #initialise reaction channels
-    EE_differentiation = gil.Reaction_channel(param,rate=r_diffAB, shape_param=alpha_diffAB, distribution = 'Gamma', name='Differentiation: ESC -> EPI')
+    EE_differentiation = gil.Reaction_channel(rate=r_diffAB, shape_param=alpha_diffAB, distribution = 'Gamma', name='Differentiation: ESC -> EPI')
     EE_differentiation.reactants = ['ESC']
     EE_differentiation.products = ['EPI']
     
-    EN_differentiation = gil.Reaction_channel(param,rate=r_diffBC, shape_param=alpha_diffBC, distribution = 'Gamma', name='Differentiation: EPI -> NPC')
+    EN_differentiation = gil.Reaction_channel(rate=r_diffBC, shape_param=alpha_diffBC, distribution = 'Gamma', name='Differentiation: EPI -> NPC')
     EN_differentiation.reactants = ['EPI']
     EN_differentiation.products = ['NPC']
     reaction_channel_list = [EE_differentiation,EN_differentiation]

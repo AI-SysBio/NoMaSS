@@ -17,15 +17,17 @@ reaction channel.
 
 import heapq
 import random
+import re
 import warnings
 from math import log, isfinite
+from types import SimpleNamespace
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 from . import distributions as dist
 
-__all__ = ['Reaction_channel', 'Reactant', 'Gillespie_simulation']
+__all__ = ['Reaction_channel', 'Reactant', 'Gillespie_simulation', 'parse_reaction']
 
 # seaborn "deep" palette, so that figures look like the ones of the paper
 PALETTE = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B3',
@@ -33,19 +35,55 @@ PALETTE = ['#4C72B0', '#DD8452', '#55A868', '#C44E52', '#8172B3',
 
 MAX_POPULATION = 1_000_000
 
+_EMPTY_SIDE = {'', '0', 'null', 'none', 'nothing', '∅', 'ø'}
+_TERM = re.compile(r'^\s*(?:(\d+)\s*\*?\s*)?([^\s*]+)\s*$')
+
+
+def parse_reaction(reaction):
+    """Parse ``'A + B -> C'`` into ``(['A', 'B'], ['C'])``.
+
+    ``'0'``, ``'null'`` or an empty side stand for no species (``'0 -> A'`` is a
+    creation, ``'A -> 0'`` a degradation). Stoichiometric coefficients are
+    written as a prefix: ``'2 A -> B'`` is ``(['A', 'A'], ['B'])``.
+    """
+    s = str(reaction).replace('→', '->').replace('=>', '->')
+    if s.count('->') != 1:
+        raise ValueError("A reaction must contain exactly one '->': %r" % reaction)
+    left, right = s.split('->')
+
+    def side(text):
+        species = []
+        for term in text.split('+'):
+            term = term.strip()
+            if term.lower() in _EMPTY_SIDE:
+                continue
+            m = _TERM.match(term)
+            if m is None:
+                raise ValueError("Cannot parse %r in reaction %r" % (term, reaction))
+            n, name = m.groups()
+            species.extend([name] * (int(n) if n else 1))
+        return species
+
+    return side(left), side(right)
+
+
+def _format_reaction(reactants, products):
+    return '%s -> %s' % (' + '.join(reactants) if reactants else '0',
+                         ' + '.join(products) if products else '0')
+
 
 class _counts:
     channel_numbers = 0
 
 
 class Reaction_channel:
-    """A reaction channel ``reactants -> products`` with a waiting time distribution.
+    """A reaction channel with a waiting-time distribution.
 
     Parameters
     ----------
-    param_simulation : object
-        Simulation parameters (``Tend``, ``N_simulations``, ``timepoints``, ``unit``).
-        Kept as first positional argument for backward compatibility; may be ``None``.
+    reaction : str, optional
+        The reaction written as ``'A + B -> C'`` (see ``parse_reaction``).
+        Alternatively give ``reactants`` and ``products`` as lists.
     rate : float
         Nominal rate: the inverse of the mean waiting time (median for Cauchy,
         Pareto and Lomax).
@@ -58,27 +96,41 @@ class Reaction_channel:
         'MOSAIC', 'Laplace' or 'Delay'. ``None`` selects MOSAIC when the
         hazard is bounded and Laplace Gillespie otherwise.
     name : str
-        Label used in printouts and plots.
+        Label used in printouts and plots; defaults to the reaction string.
     reactants, products : list of str
-        Species names. Non-Markovian waiting times are only defined for
-        channels with exactly one reactant; other channels are Poisson processes.
+        Species names, used when ``reaction`` is not given. Non-Markovian
+        waiting times are only defined for channels with exactly one reactant;
+        other channels are Poisson processes.
     transfer_identity : bool
         If a product is also a reactant, keep the same individual (its clocks
         in the other channels are preserved) instead of creating a new one.
     """
 
-    def __init__(self, param_simulation=None, rate=1.0, shape_param=1.0,
+    def __init__(self, reaction=None, rate=1.0, shape_param=1.0,
                  distribution='Exponential', method=None, name='',
                  reactants=None, products=None, transfer_identity=False):
         _counts.channel_numbers += 1
-        name = name if name else 'Reaction %d' % _counts.channel_numbers
+
+        if reaction is not None and not isinstance(reaction, str):
+            # legacy signature: Reaction_channel(param, rate=..., ...)
+            warnings.warn("The first argument of Reaction_channel is now the reaction string "
+                          "(e.g. 'A + B -> C'); the simulation parameters are passed to "
+                          "Gillespie_simulation instead.", DeprecationWarning, stacklevel=2)
+            reaction = None
+        if reaction is not None:
+            if reactants is not None or products is not None:
+                raise ValueError('Give either a reaction string or reactants/products lists, not both')
+            reactants, products = parse_reaction(reaction)
+            name = name or reaction.strip()
+        self.reactants = list(reactants) if reactants else []
+        self.products = list(products) if products else []
+        if not name:
+            name = (_format_reaction(self.reactants, self.products)
+                    if (self.reactants or self.products) else 'Reaction %d' % _counts.channel_numbers)
 
         if rate < 0:
             raise ValueError("Reaction '%s': the rate cannot be negative" % name)
 
-        self.param = param_simulation
-        self.reactants = list(reactants) if reactants else []
-        self.products = list(products) if products else []
         self.rate = float(rate)
         self.shape_param = float(shape_param)
         self.name = name
@@ -139,6 +191,7 @@ class Reaction_channel:
         else:
             self.rmax = self.rate
         self.temp_rmax = self.rmax
+        self._rmax_rate = self.rate
 
     def __repr__(self):
         return "Reaction_channel(%r)" % self.name
@@ -159,15 +212,119 @@ class Reaction_channel:
 
 
 class Reactant:
-    """One individual of a species. Extend it to attach individual properties."""
+    """One individual of a species.
 
-    __slots__ = ('id',)
+    Any attribute can be attached to it (``cell.size = 2.0``), typically from
+    an ``on_reaction`` hook; see ``examples/individual_properties.py``.
+    """
 
-    def __init__(self, ID=None):
+    def __init__(self, ID=None, **properties):
         self.id = ID
+        self.__dict__.update(properties)
 
     def __repr__(self):
-        return 'Reactant(%s)' % self.id
+        props = {k: v for k, v in self.__dict__.items() if k != 'id'}
+        return 'Reactant(%s%s)' % (self.id, ', %s' % props if props else '')
+
+
+class _WeightedPool:
+    """Set of (id, weight) with O(log n) insertion, removal, update and weighted sampling.
+
+    Implemented as a Fenwick (binary indexed) tree over slots. Used by the
+    Laplace Gillespie method to pick the reactant with probability
+    proportional to its Poisson rate. ``rescale`` multiplies every weight in O(1).
+    """
+
+    __slots__ = ('_tree', '_w', '_ids', '_slot', '_free', '_n', '_scale')
+
+    def __init__(self):
+        self._tree = [0.0]   # 1-based Fenwick tree
+        self._w = [0.0]      # raw weights per slot
+        self._ids = [None]   # id stored in each slot
+        self._slot = {}      # id -> slot
+        self._free = []
+        self._n = 0
+        self._scale = 1.0
+
+    def __len__(self):
+        return len(self._slot)
+
+    def __contains__(self, key):
+        return key in self._slot
+
+    def ids(self):
+        return list(self._slot.keys())
+
+    def _prefix(self, i):
+        s = 0.0
+        while i > 0:
+            s += self._tree[i]
+            i -= i & -i
+        return s
+
+    def _update(self, i, delta):
+        n = self._n
+        while i <= n:
+            self._tree[i] += delta
+            i += i & -i
+
+    def total(self):
+        return self._prefix(self._n) * self._scale
+
+    def add(self, key, weight):
+        raw = weight / self._scale
+        if self._free:
+            i = self._free.pop()
+            self._ids[i] = key
+            self._w[i] = raw
+            self._update(i, raw)
+        else:
+            self._n += 1
+            i = self._n
+            # new Fenwick node covers (i - lowbit(i), i]
+            low = i - (i & -i)
+            self._tree.append(raw + self._prefix(i - 1) - self._prefix(low))
+            self._w.append(raw)
+            self._ids.append(key)
+        self._slot[key] = i
+
+    def set(self, key, weight):
+        i = self._slot[key]
+        raw = weight / self._scale
+        self._update(i, raw - self._w[i])
+        self._w[i] = raw
+
+    def remove(self, key):
+        i = self._slot.pop(key)
+        self._update(i, -self._w[i])
+        self._w[i] = 0.0
+        self._ids[i] = None
+        self._free.append(i)
+
+    def rescale(self, factor):
+        self._scale *= factor
+
+    def sample(self):
+        """Return an id drawn with probability proportional to its weight."""
+        n = self._n
+        if not self._slot:
+            raise ValueError('sampling from an empty pool')
+        u = random.random() * self._prefix(n)
+        pos = 0
+        step = 1 << (n.bit_length() - 1)
+        tree = self._tree
+        while step:
+            nxt = pos + step
+            if nxt <= n and tree[nxt] < u:
+                pos = nxt
+                u -= tree[nxt]
+            step >>= 1
+        i = pos + 1
+        if i > n or self._ids[i] is None or self._w[i] <= 0.0:
+            # rounding landed on an empty slot (measure-zero event): fall back
+            keys = self.ids()
+            return random.choices(keys, weights=[self._w[self._slot[k]] for k in keys])[0]
+        return self._ids[i]
 
 
 class Gillespie_simulation:
@@ -178,12 +335,16 @@ class Gillespie_simulation:
     N_init : dict
         Initial population, species name -> count. Every species used by the
         reaction channels must appear here (with 0 if initially absent).
-    param : object
-        Simulation parameters: ``Tend`` (length), ``N_simulations`` (number of
-        repetitions), ``timepoints`` (number of recorded time points) and
-        ``unit`` (time unit, for plots).
     reaction_channel_list : list of Reaction_channel, optional
         Can also be set later through the ``reaction_channel_list`` attribute.
+    Tend : float
+        Length of each simulation.
+    N_simulations : int
+        Number of independent realisations run by ``run_simulations``.
+    timepoints : int
+        Number of recorded time points per realisation.
+    unit : str
+        Time unit, used in plot labels only.
     min_ratio : float
         MOSAIC only: the total propensity is kept at least ``min_ratio`` times
         above every channel's ``rmax`` so that the rate bounds are refreshed often
@@ -192,40 +353,71 @@ class Gillespie_simulation:
         Print numerical warnings during the simulation.
     seed : int, optional
         Seed of the random number generators (both ``random`` and NumPy).
+    on_reaction : callable, optional
+        Hook ``on_reaction(sim, channel, reactants, products)`` called after every
+        accepted reaction with the ``Reactant`` objects consumed and produced.
+        Use it to attach or propagate individual properties.
+    update_function : callable, optional
+        Hook ``update_function(sim)`` called after every iteration; it may change
+        the ``rate`` or ``shape_param`` of any channel (state-dependent kinetics).
+
+    For backward compatibility the second positional argument may also be an
+    object carrying the attributes ``Tend``, ``N_simulations``, ``timepoints``
+    and ``unit`` (the ``param`` class of earlier versions).
     """
 
-    def __init__(self, N_init, param, reaction_channel_list=None, min_ratio=10,
-                 print_warnings=False, seed=None):
-        self.param = param
-        self.param.min_ratio = min_ratio
-        self.param.print_warnings = print_warnings
-        self.reaction_channel_list = list(reaction_channel_list) if reaction_channel_list else []
+    def __init__(self, N_init, reaction_channel_list=None, Tend=10.0, N_simulations=1,
+                 timepoints=100, unit='', min_ratio=10, print_warnings=False, seed=None,
+                 on_reaction=None, update_function=None, **legacy):
+        if reaction_channel_list is not None and not isinstance(reaction_channel_list, (list, tuple)):
+            param = reaction_channel_list  # legacy "param" object
+            Tend = getattr(param, 'Tend', Tend)
+            N_simulations = getattr(param, 'N_simulations', N_simulations)
+            timepoints = getattr(param, 'timepoints', timepoints)
+            unit = getattr(param, 'unit', unit)
+            reaction_channel_list = legacy.pop('channels', None)
+        if legacy:
+            raise TypeError('Unexpected keyword arguments: %s' % ', '.join(legacy))
+
         self.reactant_population_init = dict(N_init)
-        self.update_function = None
-        self.population_compiled = None
-        self.Tend = getattr(param, 'Tend', None)
+        self.reaction_channel_list = list(reaction_channel_list) if reaction_channel_list else []
+        self.Tend = float(Tend)
+        self.N_simulations = int(N_simulations)
+        self.timepoints = int(timepoints)
+        self.unit = unit
+        self.min_ratio = min_ratio
+        self.print_warnings = print_warnings
         self.seed = seed
+        self.on_reaction = on_reaction
+        self.update_function = update_function
+        self.population_compiled = None
         self.rng = None
         self._warned = set()
+
+    @property
+    def param(self):
+        """Simulation parameters as a namespace (kept for backward compatibility)."""
+        return SimpleNamespace(Tend=self.Tend, N_simulations=self.N_simulations,
+                               timepoints=self.timepoints, unit=self.unit,
+                               min_ratio=self.min_ratio, print_warnings=self.print_warnings)
 
     # ----------------------------------------------------------------------
     # Public API
     # ----------------------------------------------------------------------
-    def run_simulations(self, Tend=None, verbose=True, update_function=None, seed=None):
-        """Run ``param.N_simulations`` simulations and return the recorded populations.
+    def run_simulations(self, Tend=None, verbose=True, update_function=None, seed=None, on_reaction=None):
+        """Run ``N_simulations`` realisations and return the recorded populations.
 
         Returns an array of shape ``(N_simulations, timepoints, n_species + 1)``;
         the last column is the total population. Species are in the order of
-        ``N_init``.
-
-        ``update_function(simulation)`` is called after every iteration and may
-        change the ``rate`` or ``shape_param`` of any channel to implement
-        state-dependent kinetics.
+        ``N_init``. ``Tend``, ``update_function`` and ``on_reaction`` override
+        the values given to the constructor.
         """
-        if Tend is None:
-            Tend = self.param.Tend
-        self.Tend = Tend
-        self.update_function = update_function
+        if Tend is not None:
+            self.Tend = float(Tend)
+        if update_function is not None:
+            self.update_function = update_function
+        if on_reaction is not None:
+            self.on_reaction = on_reaction
         self._validate()
 
         if seed is None:
@@ -235,17 +427,15 @@ class Gillespie_simulation:
         self.rng = np.random.default_rng(random.getrandbits(64))
 
         for channel in self.reaction_channel_list:
-            channel._prepare(Tend)
+            channel._prepare(self.Tend)
             channel.reset_statistics()
 
-        N_sim = int(getattr(self.param, 'N_simulations', 1))
-        timepoints = int(getattr(self.param, 'timepoints', 100))
-        population = np.empty((N_sim, timepoints, len(self.reactant_population_init) + 1))
-        for ni in range(N_sim):
+        population = np.empty((self.N_simulations, self.timepoints, len(self.reactant_population_init) + 1))
+        for ni in range(self.N_simulations):
             if verbose:
-                print("   Simulation %d / %d ..." % (ni + 1, N_sim))
+                print("   Simulation %d / %d ..." % (ni + 1, self.N_simulations))
             self.reinitialize_pop()
-            self.run_simulation(Tend)
+            self.run_simulation(self.Tend)
             population[ni] = self.population_t
 
         self.population_compiled = population
@@ -259,11 +449,6 @@ class Gillespie_simulation:
 
     def get_channel_waiting_times(self):
         return [channel.wait_times for channel in self.reaction_channel_list]
-
-    def get_model_in_SBML(self):
-        """Export the model to a ``simplesbml`` model (requires ``simplesbml``)."""
-        from .sbml import model_to_sbml
-        return model_to_sbml(self)
 
     # ----------------------------------------------------------------------
     # Validation and initialisation
@@ -315,8 +500,7 @@ class Gillespie_simulation:
         self._index = {name: {} for name in self.reactant_population_init}
         self.reactant_times = {name: {ch.name: {} for ch in self.channels_of[name]}
                                for name in self.reactant_population_init}
-        self._lam = {ch.name: {} for ch in channels if ch.method == 'Laplace'}
-        self._lam_sum = {ch.name: 0.0 for ch in channels if ch.method == 'Laplace'}
+        self._pool = {ch.name: _WeightedPool() for ch in channels if ch.method == 'Laplace'}
         self._lam_params = {ch.name: (ch.rate, ch.shape_param) for ch in channels if ch.method == 'Laplace'}
         self._delay_token = {ch.name: {} for ch in channels if ch.method == 'Delay'}
         self._delay_pool = {}
@@ -349,29 +533,28 @@ class Gillespie_simulation:
         lst = self.reactant_list[name]
         idx = self._index[name].pop(reactant_id)
         last = lst.pop()
+        removed = last
         if idx < len(lst):
+            removed = lst[idx]
             lst[idx] = last
             self._index[name][last.id] = idx
         self.reactant_population[name] -= 1
         for ch in self.channels_of[name]:
             self._stop_clock(ch, name, reactant_id)
+        return removed
 
     def _start_clock(self, ch, name, reactant_id):
         """(Re)start the clock of one individual in one channel at the current time."""
         times = self.reactant_times[name][ch.name]
         times.pop(reactant_id, None)      # move to the end: dict order == age order
         times[reactant_id] = self.t
-        if ch.method == 'Laplace' and ch.distribution != 'Exponential':
-            lam = self._lam[ch.name]
-            old = lam.pop(reactant_id, 0.0)
-            new = ch.sample_laplace_rate(self.rng)
-            lam[reactant_id] = new
-            self._lam_sum[ch.name] += new - old
-        elif ch.method == 'Laplace':
-            lam = self._lam[ch.name]
-            old = lam.pop(reactant_id, 0.0)
-            lam[reactant_id] = ch.rate
-            self._lam_sum[ch.name] += ch.rate - old
+        if ch.method == 'Laplace':
+            pool = self._pool[ch.name]
+            lam = ch.rate if ch.distribution == 'Exponential' else ch.sample_laplace_rate(self.rng)
+            if reactant_id in pool:
+                pool.set(reactant_id, lam)
+            else:
+                pool.add(reactant_id, lam)
         elif ch.method == 'Delay':
             if ch.rate > 0:
                 t_event = self.t + self._draw_delay(ch)
@@ -399,9 +582,9 @@ class Gillespie_simulation:
     def _stop_clock(self, ch, name, reactant_id):
         self.reactant_times[name][ch.name].pop(reactant_id, None)
         if ch.method == 'Laplace':
-            old = self._lam[ch.name].pop(reactant_id, None)
-            if old is not None:
-                self._lam_sum[ch.name] -= old
+            pool = self._pool[ch.name]
+            if reactant_id in pool:
+                pool.remove(reactant_id)
         elif ch.method == 'Delay':
             self._delay_token[ch.name].pop(reactant_id, None)
 
@@ -419,9 +602,11 @@ class Gillespie_simulation:
     # ----------------------------------------------------------------------
     # Main loop
     # ----------------------------------------------------------------------
-    def run_simulation(self, Tend):
+    def run_simulation(self, Tend=None):
         """Run one realisation until ``Tend`` (call ``reinitialize_pop`` first)."""
-        timepoints = int(getattr(self.param, 'timepoints', 100))
+        if Tend is None:
+            Tend = self.Tend
+        timepoints = self.timepoints
         n_species = len(self.reactant_population)
         self.Tend = Tend
         self.population_t = np.zeros((timepoints, n_species + 1))
@@ -494,12 +679,12 @@ class Gillespie_simulation:
                 propensity[ci] = self.reactant_population[ch.reactants[0]] * ch.rmax
             else:  # Laplace
                 self._refresh_laplace(ch)
-                propensity[ci] = max(self._lam_sum[ch.name], 0.0)
+                propensity[ci] = max(self._pool[ch.name].total(), 0.0)
 
         # keep the total propensity well above every rmax so that the bounds
         # of increasing hazards are refreshed often enough (MOSAIC only)
         a0 = float(np.sum(propensity))
-        min_ratio = self.param.min_ratio
+        min_ratio = self.min_ratio
         for ci, ch in enumerate(channels):
             if propensity[ci] > 0 and ch.method == 'MOSAIC' and not ch.is_poisson():
                 ratio = a0 / ch.rmax
@@ -516,7 +701,6 @@ class Gillespie_simulation:
         if ch.rmax_fixed:
             if ch.rate != getattr(ch, '_rmax_rate', None):
                 ch._prepare(self.Tend)
-                ch._rmax_rate = ch.rate
             ch.temp_rmax = ch.rmax
             return
         species = ch.reactants[0]
@@ -526,7 +710,7 @@ class Gillespie_simulation:
             t_oldest = self.t - next(iter(times.values()))
             h = ch.rate_function(t_oldest, ch.rate, ch.shape_param)
             if not isfinite(h):
-                if self.param.print_warnings:
+                if self.print_warnings:
                     print('Warning: hazard is %s at t = %.2e for reaction %s' % (h, t_oldest, ch.name))
                 h = 5 * ch.rate
             rmax = max(rmax, h)
@@ -537,16 +721,12 @@ class Gillespie_simulation:
         old_rate, old_shape = self._lam_params[ch.name]
         if ch.rate == old_rate and ch.shape_param == old_shape:
             return
-        lam = self._lam[ch.name]
+        pool = self._pool[ch.name]
         if ch.shape_param == old_shape and old_rate > 0:
-            factor = ch.rate / old_rate
-            for key in lam:
-                lam[key] *= factor
-            self._lam_sum[ch.name] *= factor
+            pool.rescale(ch.rate / old_rate)          # scale family: exact in O(1)
         else:
-            for key in lam:
-                lam[key] = ch.sample_laplace_rate(self.rng)
-            self._lam_sum[ch.name] = float(sum(lam.values()))
+            for key in pool.ids():
+                pool.set(key, ch.sample_laplace_rate(self.rng))
         self._lam_params[ch.name] = (ch.rate, ch.shape_param)
 
     # ----------------------------------------------------------------------
@@ -578,9 +758,7 @@ class Gillespie_simulation:
                     return False
                 Dt = self.t - times[reactant_id]
             elif ch.method == 'Laplace' and ch.distribution != 'Exponential':
-                lam = self._lam[ch.name]
-                ids = list(lam.keys())
-                reactant_id = random.choices(ids, weights=list(lam.values()))[0]
+                reactant_id = self._pool[ch.name].sample()
                 Dt = self.t - times[reactant_id]
             else:
                 lst = self.reactant_list[species]
@@ -589,7 +767,7 @@ class Gillespie_simulation:
                 if ch.distribution != 'Exponential':
                     h = ch.rate_function(Dt, ch.rate, ch.shape_param)
                     if not isfinite(h):
-                        if self.param.print_warnings:
+                        if self.print_warnings:
                             print('Warning: hazard is %s at t = %.2e for reaction %s' % (h, Dt, ch.name))
                         h = ch.temp_rmax
                     if h < ch.temp_rmax * random.random():
@@ -605,44 +783,56 @@ class Gillespie_simulation:
         if len(ch.reactants) == 1:
             ch.wait_times.append(Dt)
 
+        consumed, produced = [], []
         kept = {}
         for species in ch.reactants:
+            rid = chosen[species]
             if ch.transfer_identity and species in ch.products and species not in kept:
-                kept[species] = chosen[species]
+                kept[species] = rid
+                consumed.append(self.reactant_list[species][self._index[species][rid]])
             else:
-                self._remove_reactant(species, chosen[species])
+                consumed.append(self._remove_reactant(species, rid))
 
         for species in ch.products:
             if species in kept:
                 # same individual: only the clock of this channel restarts
-                self._start_clock(ch, species, kept.pop(species))
+                rid = kept.pop(species)
+                self._start_clock(ch, species, rid)
+                produced.append(self.reactant_list[species][self._index[species][rid]])
             else:
-                self._add_reactant(species)
+                produced.append(self._add_reactant(species))
+
+        if self.on_reaction is not None:
+            self.on_reaction(self, ch, consumed, produced)
         return True
 
     # ----------------------------------------------------------------------
     # Plotting
     # ----------------------------------------------------------------------
     def _unit_label(self):
-        unit = getattr(self.param, 'unit', '')
-        return ' [%s]' % unit if unit else ''
+        return ' [%s]' % self.unit if self.unit else ''
 
-    def plot_populations_single(self, show=True):
-        """Plot the species populations of the last realisation."""
+    def plot_populations_single(self, show=True, ax=None):
+        """Plot the species populations of the last realisation. Returns ``(fig, ax)``."""
         timepoints = self.population_t.shape[0]
         time_points = np.linspace(0, self.Tend, timepoints)
-        plt.figure(figsize=(7, 4))
+        fig, ax = (ax.figure, ax) if ax is not None else plt.subplots(figsize=(7, 4))
         for ri, reactant in enumerate(self.reactant_population.keys()):
-            plt.plot(time_points, self.population_t[:, ri], lw=2, color=PALETTE[ri % 10], label=reactant)
-        plt.xlabel('Time%s' % self._unit_label())
-        plt.ylabel('Population')
-        plt.legend()
+            ax.plot(time_points, self.population_t[:, ri], lw=2, color=PALETTE[ri % 10], label=reactant)
+        ax.set_xlabel('Time%s' % self._unit_label())
+        ax.set_ylabel('Population')
+        ax.legend()
         if show:
             plt.show()
+        return fig, ax
 
     def plot_populations(self, reactant_list=None, log_scale=False, color_list=None,
-                         figsize=(6.2, 4.2), show=True):
-        """Plot every realisation (thin lines) and the mean (thick line) of each species."""
+                         figsize=(6.2, 4.2), show=True, ax=None):
+        """Plot every realisation (thin lines) and the mean (thick line) of each species.
+
+        Returns ``(fig, ax)``; pass ``show=False`` to customise the figure before
+        displaying it, or ``ax`` to draw into an existing axes.
+        """
         if self.population_compiled is None:
             raise RuntimeError('Run run_simulations() before plotting')
         species = list(self.reactant_population_init.keys()) + ['Total']
@@ -654,34 +844,36 @@ class Gillespie_simulation:
 
         population = self.population_compiled
         time_points = np.linspace(0, self.Tend, population.shape[1])
-        plt.figure(figsize=figsize)
-        plt.rcParams.update({'font.size': 16})
+        fig, ax = (ax.figure, ax) if ax is not None else plt.subplots(figsize=figsize)
         k = 0
         for ri, name in enumerate(species):
             if name not in reactant_list:
                 continue
             for i in range(population.shape[0]):
-                plt.plot(time_points, population[i, :, ri], lw=0.3, alpha=0.1, color=PALETTE[0])
-            plt.plot(time_points, population[:, :, ri].mean(axis=0), lw=3, color=color_list[k], label=name)
+                ax.plot(time_points, population[i, :, ri], lw=0.3, alpha=0.1, color=PALETTE[0])
+            ax.plot(time_points, population[:, :, ri].mean(axis=0), lw=3, color=color_list[k], label=name)
             k += 1
-        plt.xlabel('Time%s' % self._unit_label())
-        plt.ylabel('Population')
-        plt.legend()
+        ax.set_xlabel('Time%s' % self._unit_label())
+        ax.set_ylabel('Population')
+        ax.legend()
         if log_scale:
-            plt.yscale('log')
+            ax.set_yscale('log')
         if show:
             plt.show()
+        return fig, ax
 
     def plot_inter_event_time_distribution(self, color_list=None, plot_fitted=True, plot_theory=True,
                                            theory_color='green', fitted_color='red', bins=None,
-                                           figsize=(6.2, 4.2), fontsize=16, lw=2, show=True, verbose=True):
+                                           figsize=(6.2, 4.2), lw=2, show=True, verbose=True):
         """Histogram of the simulated waiting times of each channel against theory.
 
+        Returns a list of ``(fig, ax)``, one per single-reactant channel that fired.
         The theoretical curve is the distribution the channel would have if it
         were the only process acting on its reactant; competing channels on
         the same species make the simulated distribution differ, which is expected.
         """
-        N_sim = max(int(getattr(self.param, 'N_simulations', 1)), 1)
+        figures = []
+        N_sim = max(self.N_simulations, 1)
         for ri, ch in enumerate(self.reaction_channel_list):
             wait_times = np.asarray(ch.wait_times, dtype=float)
             if verbose:
@@ -698,12 +890,11 @@ class Gillespie_simulation:
 
             color = PALETTE[(ri + 4) % 10] if color_list is None else color_list[ri]
             nbins = 30 if bins is None else bins
-            plt.figure(figsize=figsize)
-            plt.rcParams.update({'font.size': fontsize})
-            plt.hist(wait_times, bins=nbins, color=color, density=True, edgecolor='black')
-            plt.xlabel("Time before reaction%s" % self._unit_label())
-            plt.ylabel("PDF")
-            plt.title(ch.name)
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.hist(wait_times, bins=nbins, color=color, density=True, edgecolor='black')
+            ax.set_xlabel("Time before reaction%s" % self._unit_label())
+            ax.set_ylabel("PDF")
+            ax.set_title(ch.name)
             tmax = np.max(wait_times)
             t = np.linspace(tmax / 100000, tmax, 10000)
 
@@ -711,19 +902,18 @@ class Gillespie_simulation:
             if plot_fitted and len(wait_times) > 2:
                 try:
                     fitted, fitted_pdf = dist.fit(ch.distribution, wait_times)
-                    plt.plot(t, fitted_pdf(t), fitted_color, lw=lw, label='Fitted')
+                    ax.plot(t, fitted_pdf(t), fitted_color, lw=lw, label='Fitted')
                 except Exception:  # fitting is cosmetic; never fail the plot
                     fitted = None
             if plot_theory:
-                plt.plot(t, dist.pdf(t, ch.distribution, ch.rate, ch.shape_param),
-                         theory_color, lw=lw, linestyle='--', label='Theory')
-            plt.legend()
-            plt.xlim(0, (tmax if isinstance(nbins, int) else np.max(nbins)) * 1.03)
-            if show:
-                plt.show()
+                ax.plot(t, dist.pdf(t, ch.distribution, ch.rate, ch.shape_param),
+                        theory_color, lw=lw, linestyle='--', label='Theory')
+            ax.legend()
+            ax.set_xlim(0, (tmax if isinstance(nbins, int) else np.max(nbins)) * 1.03)
+            figures.append((fig, ax))
 
             if verbose:
-                unit = getattr(self.param, 'unit', '')
+                unit = self.unit
                 print("   Method: %s" % ch.method)
                 print("   Observed rate %.3f vs nominal %.3f" % (1 / np.mean(wait_times), ch.rate))
                 print("   Mean waiting time %.2f%s vs %.2f%s expected" %
@@ -743,6 +933,9 @@ class Gillespie_simulation:
             print('  - Out of steady state, a growing population biases waiting times towards')
             print('    short values because new reactants are continuously created with Dt = 0.')
             print('  - Increase Tend or N_simulations if the histogram is too noisy.')
+        if show:
+            plt.show()
+        return figures
 
     # ----------------------------------------------------------------------
     def __repr__(self):
@@ -752,6 +945,8 @@ class Gillespie_simulation:
     def __str__(self):
         s = 'NoMaSS model:\n'
         s += '\n  Initial population:\n    %s\n' % self.reactant_population_init
+        s += '\n  Simulation: Tend = %g%s, %d realisations, %d time points\n' % (
+            self.Tend, ' ' + self.unit if self.unit else '', self.N_simulations, self.timepoints)
         s += '\n  Reaction channels:'
         for ch in self.reaction_channel_list:
             s += '    %s\n' % ch

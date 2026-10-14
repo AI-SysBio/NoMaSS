@@ -14,7 +14,7 @@ preferred-citation:
     - family-names: "Pélissier"
       given-names: "Aurélien"
     - family-names: "Phan"
-      given-names: "M."
+      given-names: "Miroslav"
     - family-names: "Beerenwinkel"
       given-names: "Niko"
     - family-names: "Rodríguez Martínez"
@@ -22,6 +22,7 @@ preferred-citation:
   journal: "Briefings in Bioinformatics"
   volume: 27
   issue: 5
+  start: "bbag486"
   year: 2026
   doi: "10.1093/bib/bbag486"
   url: "https://pmc.ncbi.nlm.nih.gov/articles/pmid/42770838/"

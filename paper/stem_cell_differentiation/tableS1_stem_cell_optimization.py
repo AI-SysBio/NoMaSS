@@ -6,7 +6,6 @@ import seaborn as sns
 import random
 from math import log, gamma
 from scipy.stats import expon, weibull_min
-from sklearn.metrics import mean_squared_error
 import os,sys
 
 import os, sys
@@ -39,6 +38,32 @@ class param:
 class param_opt:
     n_iteration = 100
     current_iter = 0
+
+
+def rmse_multioutput(y, yhat, multioutput='uniform_average'):
+    """Root mean squared error per output column (replaces sklearn.metrics.mean_squared_error)."""
+    rmse = np.sqrt(np.mean((np.asarray(y, float) - np.asarray(yhat, float)) ** 2, axis=0))
+    if isinstance(multioutput, str):
+        return rmse if multioutput == 'raw_values' else float(np.mean(rmse))
+    return float(np.average(rmse, weights=multioutput))
+
+
+def find_min_global(function, lower, upper, n_iteration):
+    """Global minimisation with maxLIPO (dlib), as in the paper.
+
+    dlib is optional (pip install dlib, needs CMake and a C++ compiler). Without it,
+    scipy's differential evolution is used instead; results may differ slightly.
+    """
+    try:
+        import dlib
+        return dlib.find_min_global(function, list(lower), list(upper), n_iteration)
+    except ImportError:
+        import warnings
+        from scipy.optimize import differential_evolution
+        warnings.warn('dlib is not installed: using scipy differential_evolution instead of maxLIPO')
+        res = differential_evolution(lambda x: function(*x), list(zip(lower, upper)),
+                                     maxiter=max(1, n_iteration // 60), popsize=12, polish=False, seed=0)
+        return list(res.x), float(res.fun)
 
 def main_optimization():
     #Gillespie_RMMSE()
@@ -74,7 +99,6 @@ def main_optimization():
 
 def LIPO_Optimization():
     
-    import dlib
         
     """
     Requires dlib python library, install with: 
@@ -106,7 +130,7 @@ def LIPO_Optimization():
         param_bounds['alpha_diffBC'] = [0.05 , 0.5]
     elif param.distribution.lower() in ['exponential']:
         function_opt = lambda r1,r2: Gillespie_RMMSE(r1,r2, plot = False, plot_RMSE = False)
-        xopt,yopt = dlib.find_min_global(function_opt,
+        xopt,yopt = find_min_global(function_opt,
                            [param_bounds[key][0] for key in param_bounds],
                            [param_bounds[key][1] for key in param_bounds],
                            param_opt.n_iteration)
@@ -117,7 +141,7 @@ def LIPO_Optimization():
     
     
     function_opt = lambda r1,r2,alpha1,alpha2: Gillespie_RMMSE(r1,r2,alpha1,alpha2, plot = False, plot_RMSE = False)
-    xopt,yopt = dlib.find_min_global(function_opt,
+    xopt,yopt = find_min_global(function_opt,
                            [param_bounds[key][0] for key in param_bounds],
                            [param_bounds[key][1] for key in param_bounds],
                            param_opt.n_iteration)
@@ -144,11 +168,11 @@ def Gillespie_RMMSE(r_diffAB = 0.0328, r_diffBC = 0.0167, alpha_diffAB = 21.10,a
     N_init['NPC'] = 0
     
     #initialise reaction channels
-    EE_differentiation = gil.Reaction_channel(param,rate=r_diffAB, shape_param=alpha_diffAB, distribution = param.distribution, name='Differentiation: ESC -> EPI')
+    EE_differentiation = gil.Reaction_channel(rate=r_diffAB, shape_param=alpha_diffAB, distribution = param.distribution, name='Differentiation: ESC -> EPI')
     EE_differentiation.reactants = ['ESC']
     EE_differentiation.products = ['EPI']
     
-    EN_differentiation = gil.Reaction_channel(param,rate=r_diffBC, shape_param=alpha_diffBC, distribution = param.distribution, name='Differentiation: EPI -> NPC')
+    EN_differentiation = gil.Reaction_channel(rate=r_diffBC, shape_param=alpha_diffBC, distribution = param.distribution, name='Differentiation: EPI -> NPC')
     EN_differentiation.reactants = ['EPI']
     EN_differentiation.products = ['NPC']
     reaction_channel_list = [EE_differentiation,EN_differentiation]
@@ -297,11 +321,11 @@ def calculate_rmse(simulated_pop, measured_pop, avg=True, verbose=True, weights=
         yhat = yhat_sig     
 
     
-    rmse = mean_squared_error(y, yhat, squared=False, multioutput='raw_values')
+    rmse = rmse_multioutput(y, yhat, 'raw_values')
     if weights:
-        rmse_avg = mean_squared_error(y, yhat, squared=False, multioutput=weights)
+        rmse_avg = rmse_multioutput(y, yhat, weights)
     else:
-        rmse_avg = mean_squared_error(y, yhat, squared=False, multioutput='uniform_average')
+        rmse_avg = rmse_multioutput(y, yhat, 'uniform_average')
     if verbose: print('RMSE:\n ESC = {}\n EPI = {}\n NPC = {}\n Average = {}'.format(rmse[0], rmse[1], rmse[2], rmse_avg)) if verbose else None
     if avg:
         return rmse_avg
