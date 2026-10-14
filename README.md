@@ -1,6 +1,5 @@
 # NoMaSS: Non-Markovian Stochastic Simulation
 
-[![tests](https://github.com/AI-SysBio/NoMaSS/actions/workflows/ci.yml/badge.svg)](https://github.com/AI-SysBio/NoMaSS/actions/workflows/ci.yml)
 [![paper](https://img.shields.io/badge/paper-Brief.%20Bioinform.%202026-blue)](https://doi.org/10.1093/bib/bbag486)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -20,7 +19,7 @@ The methods, their accuracy and their speed are described in the accompanying pa
 
 ## Installation
 
-NoMaSS needs Python 3.9+ with `numpy`, `scipy` and `matplotlib`. Clone the repository and install the dependencies:
+NoMaSS is deliberately lightweight: the efficiency of the framework lies in the algorithms rather than in compiled extensions, so the engine is pure Python and relies only on the standard scientific stack (listed in `requirements.txt`). Python 3.9 or later is required. Clone the repository and install the dependencies:
 
 ```bash
 git clone https://github.com/AI-SysBio/NoMaSS.git
