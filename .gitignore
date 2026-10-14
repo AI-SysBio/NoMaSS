@@ -133,3 +133,6 @@ paper/rna_transcription/phase_diagrams/*.npy
 
 # GitHub metadata (Actions workflows)
 .github/
+
+# PyPI credentials (never commit)
+.pypirc
