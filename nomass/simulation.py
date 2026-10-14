@@ -892,13 +892,14 @@ class Gillespie_simulation:
             wait_times = np.asarray(ch.wait_times, dtype=float)
             if verbose:
                 print("\n Reaction channel %s:" % ch.name)
-            if len(wait_times) == 0:
+            if ch.number_of_accepted_reactions == 0:
                 if verbose:
                     print('   This reaction never occurred')
                 continue
             if len(ch.reactants) != 1:
                 if verbose:
-                    print('   This channel fired %.2f times per simulation on average.' % (len(wait_times) / N_sim))
+                    print('   This channel fired %.2f times per simulation on average.'
+                          % (ch.number_of_accepted_reactions / N_sim))
                     print('   No waiting time distribution is defined for channels without a unique reactant.')
                 continue
 

@@ -12,8 +12,6 @@ shows the method chosen for each channel.
 
 Run with:  python examples/all_distributions.py
 """
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # so that `import nomass` works without installing it
 import nomass
 
 species = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']

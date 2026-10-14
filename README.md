@@ -2,8 +2,9 @@
 
 [![paper](https://img.shields.io/badge/paper-Brief.%20Bioinform.%202026-blue)](https://doi.org/10.1093/bib/bbag486)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![pypi](https://img.shields.io/pypi/v/nomass)](https://pypi.org/project/nomass/)
 
-<img align="right" src="figures/NoMaSS.png" width=380>
+<img align="right" src="https://raw.githubusercontent.com/AI-SysBio/NoMaSS/main/figures/NoMaSS.png" width=380>
 
 Discrete stochastic processes are widespread in nature and in human-made systems, with applications in physics, biochemistry, epidemiology, social dynamics and finance. In most of these systems the dynamics cannot be described with memoryless (Markovian) interactions, and simulating them requires dedicated numerical tools.
 
@@ -19,15 +20,19 @@ The methods, their accuracy and their speed are described in the accompanying pa
 
 ## Installation
 
-NoMaSS is deliberately lightweight: the efficiency of the framework lies in the algorithms rather than in compiled extensions, so the engine is pure Python and relies only on the standard scientific stack (listed in `requirements.txt`). Python 3.9 or later is required. Clone the repository and install the dependencies:
+NoMaSS is deliberately lightweight: the efficiency of the framework lies in the algorithms rather than in compiled extensions, so the engine is pure Python and relies only on the standard scientific stack. Python 3.9 or later is required.
+
+```bash
+pip install nomass
+```
+
+To work on the code or run the scripts of the paper, clone the repository and install it in editable mode:
 
 ```bash
 git clone https://github.com/AI-SysBio/NoMaSS.git
 cd NoMaSS
-pip install -r requirements.txt
+pip install -e .[test,paper]
 ```
-
-The engine is the `nomass/` folder. The examples add the repository root to `sys.path` so they run from anywhere; in your own scripts, run from the repository root, set `PYTHONPATH` to it, or copy the folder next to your script. A pip-installable package will follow.
 
 Check that everything works with
 
@@ -67,7 +72,7 @@ sim.plot_populations()
 The simulation runs in a few seconds and produces the figures below (pass `verbose=False` to silence the progress output).
 
 <p align="center">
-  <img src="figures/toy_example.png" width=1000>
+  <img src="https://raw.githubusercontent.com/AI-SysBio/NoMaSS/main/figures/toy_example.png" width=1000>
 </p>
 
 The oscillations created by the nearly deterministic Gamma waiting times are clearly visible. The *theoretical* distributions do not match the *simulated* ones exactly, even with many realisations, and this is expected: species A and B are reactants of two channels at the same time, and the theoretical curve is the distribution the channel would have if it were the only process acting on its reactant. The accuracy of each method is demonstrated in [1] and [2].
@@ -142,15 +147,16 @@ def inherit(sim, channel, consumed, produced):
 sim = nomass.Gillespie_simulation({'Cell': 20}, [division, death], Tend=6, on_reaction=inherit)
 ```
 
-Set `transfer_identity=True` on a channel such as `'Gon -> Gon + mRNA'` to keep the same individual (with its properties and the clocks of its other channels) instead of replacing it. For kinetic laws that are not proportional to the reactant counts, subclass `Gillespie_simulation` and override `compute_propensities`; both classes are documented in [nomass/simulation.py](nomass/simulation.py), and the hazards, samplers and Laplace mixing densities of all distributions are in [nomass/distributions.py](nomass/distributions.py).
+Set `transfer_identity=True` on a channel such as `'Gon -> Gon + mRNA'` to keep the same individual (with its properties and the clocks of its other channels) instead of replacing it. For kinetic laws that are not proportional to the reactant counts, subclass `Gillespie_simulation` and override `compute_propensities`; the full API is described in [docs/api.md](docs/api.md), and the hazards, samplers and Laplace mixing densities of all distributions are in [nomass/distributions.py](nomass/distributions.py).
 
 ## Repository layout
 
 ```
 nomass/        the engine (distributions and simulation)
+docs/          API reference (docs/api.md)
 examples/      short runnable examples
 paper/         scripts, data and precomputed results reproducing the paper's figures
-tests/         pytest suite run by GitHub Actions
+tests/         pytest suite (pytest -q)
 ```
 
 The biochemical systems of the paper (bacterial growth, stem cell differentiation and RNA transcription) live in `paper/`, with a figure-to-script table in [paper/README.md](paper/README.md) and the article with its supplementary material in [paper/Pelissier2026_NoMaSS_main_and_SI.pdf](paper/Pelissier2026_NoMaSS_main_and_SI.pdf).

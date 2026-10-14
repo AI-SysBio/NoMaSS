@@ -8,8 +8,6 @@ Quick start: a small reaction network mixing the three simulation methods.
 
 Run with:  python examples/toy_example.py
 """
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # so that `import nomass` works without installing it
 import nomass
 
 # Reaction channels: one waiting-time distribution and one method each

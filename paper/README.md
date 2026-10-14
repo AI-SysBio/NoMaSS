@@ -9,7 +9,7 @@ The article with its supplementary material is included as [Pelissier2026_NoMaSS
 Every script imports the engine from the `nomass/` folder at the root of the repository and uses paths relative to its own folder, so it can be run from anywhere:
 
 ```bash
-pip install -r requirements.txt -r paper/requirements.txt
+pip install -e .[paper]
 python paper/stem_cell_differentiation/fig3_stem_cell_model.py
 ```
 

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nomass"
+version = "1.0.0"
+description = "Non-Markovian Stochastic Simulation: Gillespie-based simulation of reaction networks with arbitrary inter-event time distributions"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Aurélien Pélissier", email = "aurelien.pelissier.38@gmail.com" },
+]
+keywords = [
+  "gillespie", "stochastic simulation", "non-markovian", "renewal process",
+  "systems biology", "reaction network", "delay", "laplace gillespie", "mosaic",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "numpy>=1.21",
+  "scipy>=1.7",
+  "matplotlib>=3.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+paper = ["pandas", "seaborn", "openpyxl", "SALib"]
+
+[project.urls]
+Homepage = "https://github.com/AI-SysBio/NoMaSS"
+Documentation = "https://github.com/AI-SysBio/NoMaSS/blob/main/docs/api.md"
+Repository = "https://github.com/AI-SysBio/NoMaSS"
+Issues = "https://github.com/AI-SysBio/NoMaSS/issues"
+Paper = "https://doi.org/10.1093/bib/bbag486"
+
+[tool.setuptools.packages.find]
+include = ["nomass*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

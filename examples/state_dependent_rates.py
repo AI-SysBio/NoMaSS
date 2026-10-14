@@ -10,8 +10,6 @@ Laplace Gillespie for state-dependent kinetics, as done here.
 
 Run with:  python examples/state_dependent_rates.py
 """
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # so that `import nomass` works without installing it
 import nomass
 
 r0 = 1.0      # division rate of an isolated cell

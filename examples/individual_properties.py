@@ -10,8 +10,6 @@ the dying cell for a final histogram.
 
 Run with:  python examples/individual_properties.py
 """
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # so that `import nomass` works without installing it
 import numpy as np
 import matplotlib.pyplot as plt
 import nomass
