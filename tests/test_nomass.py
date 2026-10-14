@@ -120,6 +120,32 @@ def test_update_function_implements_state_dependent_rates():
         assert np.all(np.abs(pop[:, -1, 0] - K) <= 10), method
 
 
+def test_rates_changed_by_update_function_are_reset_for_each_realisation():
+    # the initial 100 delays of every realisation must be drawn at the initial rate,
+    # not at the rate left behind by update_function in the previous realisation
+    r = 1 / 71.6
+
+    def halve(sim):
+        sim.reaction_channel_list[0].rate = r / 2
+
+    ch = nomass.Reaction_channel('S -> S + Q', rate=r, distribution='Exponential', method='Delay')
+    sim = nomass.Gillespie_simulation({'S': 100, 'Q': 0}, [ch], Tend=600, N_simulations=4,
+                                      update_function=halve, seed=2)
+    pop = sim.run_simulations(verbose=False)
+    # renewal process: first interval mean 71.6 h, later ones 143.2 h -> 469 events in 600 h
+    assert np.all(np.abs(pop[:, -1, 1] - 469) < 60), pop[:, -1, 1]
+    assert ch.rate == r  # restored after the last realisation
+
+    # Laplace: the initial Poisson rates are drawn in the same place; realisations must agree
+    ch = nomass.Reaction_channel('S -> S + Q', rate=r, shape_param=0.5, distribution='Gamma', method='Laplace')
+    sim = nomass.Gillespie_simulation({'S': 100, 'Q': 0}, [ch], Tend=600, N_simulations=4,
+                                      update_function=halve, seed=2)
+    pop = sim.run_simulations(verbose=False)
+    final = pop[:, -1, 1]
+    assert np.std(final) < 0.15 * np.mean(final), final
+    assert ch.rate == r
+
+
 def test_on_reaction_hook_receives_individuals():
     division = nomass.Reaction_channel('Cell -> Cell + Cell', rate=1, shape_param=5, distribution='Gamma')
     death = nomass.Reaction_channel('Cell -> 0', rate=0.2)

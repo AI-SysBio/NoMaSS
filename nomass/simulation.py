@@ -367,7 +367,7 @@ class Gillespie_simulation:
     """
 
     def __init__(self, N_init, reaction_channel_list=None, Tend=10.0, N_simulations=1,
-                 timepoints=100, unit='', min_ratio=10, print_warnings=False, seed=None,
+                 timepoints=100, unit='', min_ratio=20, print_warnings=False, seed=None,
                  on_reaction=None, update_function=None, **legacy):
         if reaction_channel_list is not None and not isinstance(reaction_channel_list, (list, tuple)):
             param = reaction_channel_list  # legacy "param" object
@@ -426,6 +426,8 @@ class Gillespie_simulation:
             random.seed(seed)
         self.rng = np.random.default_rng(random.getrandbits(64))
 
+        # update_function may change rates during a run: every realisation restarts from these
+        self._initial_params = [(ch.rate, ch.shape_param) for ch in self.reaction_channel_list]
         for channel in self.reaction_channel_list:
             channel._prepare(self.Tend)
             channel.reset_statistics()
@@ -438,6 +440,8 @@ class Gillespie_simulation:
             self.run_simulation(self.Tend)
             population[ni] = self.population_t
 
+        for ch, (rate, shape) in zip(self.reaction_channel_list, self._initial_params):
+            ch.rate, ch.shape_param = rate, shape
         self.population_compiled = population
         return population
 
@@ -482,11 +486,16 @@ class Gillespie_simulation:
                            "Poisson process." % (channel.name, len(channel.reactants)))
 
     def reinitialize_pop(self):
-        """Reset the populations to the initial condition (statistics are kept)."""
+        """Reset the populations and channel parameters to the initial condition (statistics are kept)."""
         self.t = 0.0
         self._next_id = 0
         self._seq = 0
         channels = self.reaction_channel_list
+        initial = getattr(self, '_initial_params', None)
+        if initial is None or len(initial) != len(channels):
+            self._initial_params = initial = [(ch.rate, ch.shape_param) for ch in channels]
+        for ch, (rate, shape) in zip(channels, initial):
+            ch.rate, ch.shape_param = rate, shape
         self.channel_index = {ch.name: ci for ci, ch in enumerate(channels)}
 
         # channels that depend on the individual clocks of a given species
