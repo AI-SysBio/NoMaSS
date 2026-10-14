@@ -57,10 +57,10 @@ def main():
             
             # https://thirdorderscientist.org/homoclinic-orbit/2013/10/24/kernel-density-estimation-for-random-variables-with-bounded-support-mdash-the-transformation-trick
             
-        np.save('mRNA_output.npy', mRNA_output)
+        np.save('results/mRNA_output.npy', mRNA_output)
         
     else:
-        mRNA_output = np.load('mRNA_output.npy')
+        mRNA_output = np.load('results/mRNA_output.npy')
         
     plt.rcParams.update({'font.size': 18})
     plt.figure(figsize=(8,5))

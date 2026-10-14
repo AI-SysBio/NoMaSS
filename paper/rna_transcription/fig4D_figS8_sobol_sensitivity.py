@@ -83,10 +83,10 @@ def Sobol_sensitivity_analysis(r_on, r_off, r_prod):
         # Run model on all values
         Y = evaluate_Gillespie(param_values)
         
-        np.save('sensitivity_analysis.npy',Y)
+        np.save('results/sensitivity_analysis.npy',Y)
         
     else:
-        Y = np.load('sensitivity_analysis.npy')
+        Y = np.load('results/sensitivity_analysis.npy')
     
     measures = ['mean','CV','Fano','Entropy']
     for i in range(4):

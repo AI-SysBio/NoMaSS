@@ -360,6 +360,9 @@ class Gillespie_simulation:
     update_function : callable, optional
         Hook ``update_function(sim)`` called after every iteration; it may change
         the ``rate`` or ``shape_param`` of any channel (state-dependent kinetics).
+    max_population : int
+        Stop a realisation early once the total population exceeds this value
+        (the recorded populations are then held constant until ``Tend``).
 
     For backward compatibility the second positional argument may also be an
     object carrying the attributes ``Tend``, ``N_simulations``, ``timepoints``
@@ -368,7 +371,7 @@ class Gillespie_simulation:
 
     def __init__(self, N_init, reaction_channel_list=None, Tend=10.0, N_simulations=1,
                  timepoints=100, unit='', min_ratio=20, print_warnings=False, seed=None,
-                 on_reaction=None, update_function=None, **legacy):
+                 on_reaction=None, update_function=None, max_population=MAX_POPULATION, **legacy):
         if reaction_channel_list is not None and not isinstance(reaction_channel_list, (list, tuple)):
             param = reaction_channel_list  # legacy "param" object
             Tend = getattr(param, 'Tend', Tend)
@@ -390,6 +393,7 @@ class Gillespie_simulation:
         self.seed = seed
         self.on_reaction = on_reaction
         self.update_function = update_function
+        self.max_population = max_population
         self.population_compiled = None
         self.rng = None
         self._warned = set()
@@ -637,9 +641,10 @@ class Gillespie_simulation:
 
             if a0 <= 0 and next_delay is None:
                 break
-            if sum(self.reactant_population.values()) > MAX_POPULATION:
-                self._warn('explosion', 'More than %d reactants: the simulation is stopped early'
-                           % MAX_POPULATION)
+            if sum(self.reactant_population.values()) > self.max_population:
+                if self.max_population >= MAX_POPULATION:
+                    self._warn('explosion', 'More than %d reactants: the simulation is stopped early'
+                               % MAX_POPULATION)
                 break
 
             tau = log(1.0 / random.random()) / a0 if a0 > 0 else float('inf')

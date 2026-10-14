@@ -11,8 +11,6 @@ B: growth of a population of 100 cells for each alpha, at a fixed mean
 
 The growth curves ship precomputed in ``results/`` (DelaySSA, 10 realisations);
 set ``recompute = True`` to regenerate them (a few minutes).
-
-Fig. 2C (runtime per event) is not reproduced here.
 """
 import os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

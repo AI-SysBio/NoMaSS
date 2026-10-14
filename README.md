@@ -153,11 +153,11 @@ paper/         scripts, data and precomputed results reproducing the paper's fig
 tests/         pytest suite run by GitHub Actions
 ```
 
-The biochemical systems of the paper (bacterial growth, stem cell differentiation and RNA transcription) live in `paper/`, with a figure-to-script table in [paper/README.md](paper/README.md).
+The biochemical systems of the paper (bacterial growth, stem cell differentiation and RNA transcription) live in `paper/`, with a figure-to-script table in [paper/README.md](paper/README.md) and the article with its supplementary material in [paper/Pelissier2026_NoMaSS_main_and_SI.pdf](paper/Pelissier2026_NoMaSS_main_and_SI.pdf).
 
 ## Citation
 
-If you use NoMaSS, please cite
+If you use NoMaSS, please cite (full text with supplementary material: [paper/Pelissier2026_NoMaSS_main_and_SI.pdf](paper/Pelissier2026_NoMaSS_main_and_SI.pdf))
 
 > Pélissier A., Phan M., Beerenwinkel N., Rodríguez Martínez M. *Gillespie-based simulation and inference for non-Markovian stochastic reaction networks.* Briefings in Bioinformatics 27(5), bbag486 (2026). doi:[10.1093/bib/bbag486](https://doi.org/10.1093/bib/bbag486)
 
