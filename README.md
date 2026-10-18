@@ -1,4 +1,4 @@
-_Repository accompagning the publication: [Gillespie-based simulation and inference for non-Markovian stochastic reaction networks. *Briefings in Bioinformatics* **27**(5), bbag486 (2026)](https://doi.org/10.1093/bib/bbag486)_
+_Note: This repository accompanies the publication: [Gillespie-based simulation and inference for non-Markovian stochastic reaction networks. *Briefings in Bioinformatics* **27**(5), bbag486 (2026)](https://doi.org/10.1093/bib/bbag486)_
 
 
 # NoMaSS: Non-Markovian Stochastic Simulation
